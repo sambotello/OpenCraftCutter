@@ -1,0 +1,37 @@
+[package]
+name = "opencraftcutter"
+description = "Software libre de diseño y corte para cortadoras compatibles con Silhouette Cameo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "opencraftcutter"
+path = "src/main.rs"
+
+[dependencies]
+oc-core.workspace = true
+oc-svg.workspace = true
+oc-studio3.workspace = true
+oc-cutter.workspace = true
+oc-trace.workspace = true
+image.workspace = true
+trash = "5"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+egui.workspace = true
+eframe.workspace = true
+egui_extras.workspace = true
+egui_material_icons.workspace = true
+kurbo.workspace = true
+lyon.workspace = true
+rfd.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+env_logger.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+egui_kittest = { version = "0.37", features = ["eframe", "snapshot", "wgpu"] }

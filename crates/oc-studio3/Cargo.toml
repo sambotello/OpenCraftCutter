@@ -1,0 +1,15 @@
+[package]
+name = "oc-studio3"
+description = "Lectura de documentos .studio3 de Silhouette Studio para OpenCraftCutter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+oc-core.workspace = true
+kurbo.workspace = true
+thiserror.workspace = true
+image.workspace = true
+tiny-skia = "0.11"

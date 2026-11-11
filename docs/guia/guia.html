@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>OpenCraftCutter · Guía del usuario</title>
+<style>
+  @page {
+    size: Letter;
+    margin: 20mm 18mm 20mm 18mm;
+    @bottom-left { content: "OpenCraftCutter · Guía del usuario"; font: 8pt "Helvetica Neue", Helvetica, sans-serif; color: #8a8f98; }
+    @bottom-right { content: counter(page); font: 600 8pt "Helvetica Neue", Helvetica, sans-serif; color: #8a8f98; }
+  }
+  @page portada { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+  :root {
+    --accent: #12a2c2;
+    --accent-soft: #e3f5fa;
+    --ink: #1d2127;
+    --muted: #5d6470;
+    --line: #dde1e6;
+    --panel: #f5f7f9;
+    --warn: #b45309;
+    --warn-soft: #fff6e6;
+    --cut: #e3343f;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    font: 10.2pt/1.55 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    hyphens: auto;
+  }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* Portada */
+  .portada {
+    page: portada;
+    height: 279.4mm;
+    width: 215.9mm;
+    position: relative;
+    background: linear-gradient(160deg, #1f2226 0%, #26292e 55%, #10353f 100%);
+    color: #f2f4f6;
+    break-after: page;
+    overflow: hidden;
+  }
+  .portada .marco {
+    position: absolute; inset: 22mm 20mm;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 6mm;
+  }
+  .portada .rejilla {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 10mm 10mm;
+  }
+  .portada .contenido { position: absolute; left: 34mm; right: 34mm; top: 62mm; }
+  .portada img { width: 34mm; height: 34mm; border-radius: 8mm; box-shadow: 0 6mm 14mm rgba(0,0,0,.35); }
+  .portada h1 { font-size: 40pt; line-height: 1.05; margin: 12mm 0 3mm; font-weight: 700; letter-spacing: -.5pt; }
+  .portada .sub { font-size: 16pt; color: #9fe3f2; font-weight: 300; margin: 0; }
+  .portada .resumen { margin-top: 14mm; font-size: 11pt; color: #c5cbd2; max-width: 120mm; line-height: 1.6; }
+  .portada .pie { position: absolute; left: 34mm; right: 34mm; bottom: 34mm; font-size: 9pt; color: #9aa2ad; display: flex; justify-content: space-between; }
+  .portada .corte {
+    position: absolute; right: -18mm; top: 120mm; width: 110mm; height: 110mm;
+    border: 1.2px dashed rgba(227,52,63,.55); border-radius: 50%;
+  }
+  .portada .corte2 {
+    position: absolute; right: 14mm; top: 150mm; width: 46mm; height: 46mm;
+    border: 1.2px solid rgba(34,184,216,.6); transform: rotate(18deg); border-radius: 3mm;
+  }
+
+  /* Índice */
+  .indice { break-after: page; }
+  .indice h2 { margin-top: 0; }
+  .indice ol { list-style: none; padding: 0; margin: 0; counter-reset: cap; columns: 2; column-gap: 10mm; }
+  .indice > ol > li { counter-increment: cap; margin: 0 0 3.2mm; break-inside: avoid; }
+  .indice > ol > li > a { font-weight: 600; color: var(--ink); display: block; }
+  .indice > ol > li > a::before { content: counter(cap, decimal-leading-zero); color: var(--accent); font-weight: 700; margin-right: 2.5mm; font-variant-numeric: tabular-nums; }
+  .indice ol ol { columns: 1; margin: 1mm 0 0 8.5mm; }
+  .indice ol ol li { font-size: 9pt; line-height: 1.5; }
+  .indice ol ol a { color: var(--muted); }
+
+  /* Capítulos */
+  section.cap { break-before: page; }
+  h2 {
+    font-size: 22pt; line-height: 1.15; margin: 0 0 2mm; letter-spacing: -.3pt;
+    padding-top: 2mm;
+  }
+  .cap > .kicker { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1.6pt; color: var(--accent); font-weight: 700; margin: 0; }
+  .cap > .entrada { font-size: 11.5pt; color: var(--muted); margin: 1mm 0 6mm; max-width: 150mm; }
+  h3 { font-size: 13.5pt; margin: 7mm 0 2mm; break-after: avoid; }
+  h4 { font-size: 10.8pt; margin: 4.5mm 0 1mm; break-after: avoid; color: #2a3038; }
+  p { margin: 0 0 2.4mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5.5mm; }
+  li { margin: .6mm 0; }
+  strong { font-weight: 600; }
+  .ui { font-weight: 600; color: #0b6f86; white-space: nowrap; }
+  kbd {
+    font: 600 8.6pt "SF Mono", Menlo, monospace;
+    background: #fff; border: 1px solid #c9ced5; border-bottom-width: 2px;
+    border-radius: 1.2mm; padding: .15mm 1.2mm; white-space: nowrap; color: #2a3038;
+  }
+  code { font: 8.8pt "SF Mono", Menlo, monospace; background: var(--panel); padding: .2mm 1mm; border-radius: 1mm; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.2pt; break-inside: auto; }
+  th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: .6pt; color: var(--muted); border-bottom: 1.5px solid var(--ink); padding: 1.6mm 2mm; }
+  td { border-bottom: 1px solid var(--line); padding: 1.7mm 2mm; vertical-align: top; }
+  tr { break-inside: avoid; }
+  td:first-child { white-space: nowrap; }
+  table.ancho td:first-child { white-space: normal; width: 34%; }
+
+  .nota, .aviso, .truco {
+    border-radius: 2mm; padding: 3mm 4mm 3mm 11mm; margin: 3mm 0 4mm; position: relative; break-inside: avoid;
+    font-size: 9.6pt;
+  }
+  .nota { background: var(--accent-soft); }
+  .aviso { background: var(--warn-soft); }
+  .truco { background: #eef7ee; }
+  .nota::before, .aviso::before, .truco::before {
+    position: absolute; left: 3.6mm; top: 2.7mm; font-weight: 700; font-size: 10pt;
+  }
+  .nota::before { content: "i"; color: var(--accent); font-family: Georgia, serif; font-style: italic; font-size: 12pt; left: 4.4mm; }
+  .aviso::before { content: "!"; color: var(--warn); font-size: 12pt; left: 4.6mm; }
+  .truco::before { content: "★"; color: #2f8a3a; }
+  .nota p:last-child, .aviso p:last-child, .truco p:last-child { margin: 0; }
+
+  .pasos { counter-reset: paso; list-style: none; padding: 0; }
+  .pasos > li { counter-increment: paso; position: relative; padding-left: 10mm; margin: 0 0 3mm; break-inside: avoid; }
+  .pasos > li::before {
+    content: counter(paso); position: absolute; left: 0; top: -.3mm;
+    width: 6.5mm; height: 6.5mm; border-radius: 50%; background: var(--accent); color: #fff;
+    font-weight: 700; font-size: 9pt; text-align: center; line-height: 6.5mm;
+  }
+  .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .tarjetas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 3mm 0 5mm; }
+  .tarjeta { border: 1px solid var(--line); border-radius: 2.5mm; padding: 3.5mm; break-inside: avoid; }
+  .tarjeta b { display: block; font-size: 10.5pt; margin-bottom: 1mm; }
+  .tarjeta span { color: var(--muted); font-size: 9pt; line-height: 1.45; display: block; }
+  figure { margin: 3mm 0 5mm; break-inside: avoid; }
+  figcaption { font-size: 8.6pt; color: var(--muted); margin-top: 1.5mm; }
+  .estado { display: inline-block; font-size: 7.4pt; font-weight: 700; letter-spacing: .5pt; text-transform: uppercase; padding: .3mm 1.6mm; border-radius: 1mm; vertical-align: 1px; }
+  .estado.dev { background: #fdecc8; color: #8a5a00; }
+  .estado.ok { background: #d9f2df; color: #1f6b33; }
+  .col2 { columns: 2; column-gap: 8mm; }
+  .col2 > * { break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ============================ PORTADA ============================ -->
+<div class="portada">
+  <div class="rejilla"></div>
+  <div class="marco"></div>
+  <div class="corte"></div>
+  <div class="corte2"></div>
+  <div class="contenido">
+    <img src="icono.png" alt="">
+    <h1>OpenCraftCutter</h1>
+    <p class="sub">Guía del usuario</p>
+    <p class="resumen">Diseña, prepara y corta con tu Silhouette CAMEO desde una aplicación nativa para Mac. Esta guía recorre todo el programa: desde tu primer diseño hasta el envío a la máquina, con los ajustes de cada material.</p>
+  </div>
+  <div class="pie"><span>Versión 0.3.0 · macOS (Apple Silicon)</span><span>Octubre de 2026</span></div>
+</div>
+
+<!-- ============================ ÍNDICE ============================ -->
+<nav class="indice">
+  <p class="kicker" style="font-size:8.5pt;text-transform:uppercase;letter-spacing:1.6pt;color:var(--accent);font-weight:700;margin:0">Contenido</p>
+  <h2>Índice</h2>
+  <ol>
+    <li><a href="#bienvenida">Bienvenida</a>
+      <ol><li><a href="#instalar">Instalar OpenCraftCutter</a></li><li><a href="#espacios">Los tres espacios de trabajo</a></li><li><a href="#interfaz">Mapa de la interfaz</a></li></ol></li>
+    <li><a href="#primer">Tu primer proyecto, paso a paso</a></li>
+    <li><a href="#pagina">Configuración de página</a>
+      <ol><li><a href="#maquina">Máquina, tapete y medios</a></li><li><a href="#reticula">Retícula y ajuste inteligente</a></li></ol></li>
+    <li><a href="#dibujar">Dibujar y seleccionar</a>
+      <ol><li><a href="#herramientas">Herramientas</a></li><li><a href="#seleccion">Seleccionar y transformar con el ratón</a></li><li><a href="#vista">Moverse por el lienzo</a></li></ol></li>
+    <li><a href="#puntos">Editar puntos</a></li>
+    <li><a href="#texto">Texto</a></li>
+    <li><a href="#estilo">Relleno y trazo</a></li>
+    <li><a href="#organizar">Organizar, transformar y capas</a></li>
+    <li><a href="#modificar">Modificar formas</a>
+      <ol><li><a href="#booleanas">Fusionar, restar, dividir…</a></li><li><a href="#desplazamiento">Desplazamiento (contornos)</a></li><li><a href="#replicar">Replicar</a></li></ol></li>
+    <li><a href="#imagenes">Imágenes y trazado</a>
+      <ol><li><a href="#trazar">Trazar una imagen</a></li><li><a href="#pixscan">PixScan</a></li><li><a href="#printcut">Imprimir y cortar</a></li></ol></li>
+    <li><a href="#especiales">Pedrería, boceto y herramientas especiales</a></li>
+    <li><a href="#archivos">Archivos</a>
+      <ol><li><a href="#formatos">Formatos que entiende OpenCraftCutter</a></li><li><a href="#studio3">Trabajar con Silhouette Studio (.studio3)</a></li><li><a href="#recuperacion">Copia automática y recuperación</a></li></ol></li>
+    <li><a href="#biblioteca">La Biblioteca</a></li>
+    <li><a href="#enviar">Enviar a la CAMEO</a>
+      <ol><li><a href="#conectar">Conectar la máquina</a></li><li><a href="#modos">Modos de envío</a></li><li><a href="#materiales">Materiales y ajustes de corte</a></li><li><a href="#acciones">Acciones y herramientas</a></li><li><a href="#prueba">Corte de prueba</a></li><li><a href="#avisos">Avisos antes de enviar</a></li><li><a href="#simular">Tiempo estimado y simulación</a></li><li><a href="#opciones">Opciones de envío</a></li><li><a href="#cortando">Durante el corte</a></li><li><a href="#historial">Historial y cuchillas</a></li></ol></li>
+    <li><a href="#vinil">Vinil, pegatinas y más</a>
+      <ol><li><a href="#pegatinas">Hoja de pegatinas</a></li><li><a href="#acomodar">Acomodar en la página</a></li><li><a href="#desbarbado">Desbarbado</a></li><li><a href="#capas">Capas de varios colores</a></li><li><a href="#textotrazado">Texto sobre un trazado</a></li><li><a href="#untrazo">Fuente de un trazo</a></li><li><a href="#plantillas">Plantillas</a></li><li><a href="#qr">Código QR</a></li><li><a href="#grandes">Diseños más grandes que el tapete</a></li></ol></li>
+    <li><a href="#preferencias">Preferencias</a></li>
+    <li><a href="#atajos">Atajos de teclado</a></li>
+    <li><a href="#problemas">Solución de problemas</a></li>
+    <li><a href="#glosario">Glosario</a></li>
+  </ol>
+</nav>
+
+<!-- ============================ 1 BIENVENIDA ============================ -->
+<section class="cap" id="bienvenida">
+  <p class="kicker">Capítulo 1</p>
+  <h2>Bienvenida</h2>
+  <p class="entrada">OpenCraftCutter es una aplicación para diseñar y cortar con las cortadoras Silhouette CAMEO. Funciona como una aplicación nativa de Mac, abre tus archivos de Silhouette Studio y habla directamente con la máquina por Bluetooth.</p>
+
+  <div class="tarjetas">
+    <div class="tarjeta"><b>Diseña</b><span>Formas, texto con las fuentes de tu Mac, edición de nodos, operaciones entre formas, imágenes y trazado automático.</span></div>
+    <div class="tarjeta"><b>Organiza</b><span>Una biblioteca local con carpetas, búsqueda y vistas previas de tus diseños, SVG, imágenes y archivos .studio3.</span></div>
+    <div class="tarjeta"><b>Corta</b><span>Más de 80 materiales con ajustes de corte recomendados, modo guiado, corte por colores y forma de prueba.</span></div>
+  </div>
+
+  <h3 id="instalar">Instalar OpenCraftCutter</h3>
+  <ol class="pasos">
+    <li>Abre el archivo <code>OpenCraftCutter-0.2.1.dmg</code> y arrastra <span class="ui">OpenCraftCutter</span> a la carpeta <span class="ui">Aplicaciones</span>.</li>
+    <li>La primera vez, en Aplicaciones, haz <strong>clic derecho sobre OpenCraftCutter → Abrir</strong> y confirma con <span class="ui">Abrir</span>. Si macOS no te deja, ve a <span class="ui">Ajustes del Sistema → Privacidad y seguridad</span> y pulsa <span class="ui">Abrir igualmente</span>. Solo hace falta una vez.</li>
+    <li>Al conectar la máquina por primera vez, macOS pedirá permiso para usar Bluetooth: acéptalo.</li>
+  </ol>
+  <div class="nota"><p><strong>Requisitos.</strong> macOS 11 o posterior en un Mac con Apple Silicon (M1 o posterior). Para cortar se necesita una CAMEO con Bluetooth; la conexión está comprobada con la CAMEO 5.</p></div>
+
+  <h3 id="espacios">Los tres espacios de trabajo</h3>
+  <p>En la esquina superior derecha hay tres pestañas grandes. Cada una cambia toda la ventana a un modo de trabajo:</p>
+  <table class="ancho">
+    <tr><th>Espacio</th><th>Para qué sirve</th></tr>
+    <tr><td><span class="ui">DISEÑO</span> <kbd>⌥⌘D</kbd></td><td>El lienzo con el tapete, las herramientas de dibujo y todos los paneles de edición. Aquí pasarás la mayor parte del tiempo.</td></tr>
+    <tr><td><span class="ui">BIBLIOTECA</span> <kbd>⌥⌘L</kbd></td><td>Tus diseños guardados, con carpetas, búsqueda y vistas previas. Abre o inserta un diseño con un clic.</td></tr>
+    <tr><td><span class="ui">ENVIAR</span></td><td>Todo lo necesario para cortar: conexión, material, acción, herramienta y el botón <span class="ui">ENVIAR</span>.</td></tr>
+  </table>
+
+  <h3 id="interfaz">Mapa de la interfaz</h3>
+  <figure>
+    <svg viewBox="0 0 640 380" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica Neue, Helvetica, sans-serif">
+      <rect x="0" y="0" width="640" height="380" rx="10" fill="#26292e"/>
+      <rect x="0" y="0" width="640" height="34" rx="10" fill="#1f2226"/>
+      <rect x="0" y="24" width="640" height="10" fill="#1f2226"/>
+      <g fill="#5a5f66"><rect x="14" y="11" width="18" height="12" rx="2"/><rect x="38" y="11" width="18" height="12" rx="2"/><rect x="62" y="11" width="18" height="12" rx="2"/><rect x="92" y="11" width="18" height="12" rx="2"/><rect x="116" y="11" width="18" height="12" rx="2"/></g>
+      <rect x="440" y="8" width="62" height="18" rx="3" fill="#22b8d8"/><text x="471" y="21" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">DISEÑO</text>
+      <text x="540" y="21" fill="#c8c8c8" font-size="9" text-anchor="middle" font-weight="700">BIBLIOTECA</text>
+      <text x="604" y="21" fill="#c8c8c8" font-size="9" text-anchor="middle" font-weight="700">ENVIAR</text>
+      <rect x="0" y="34" width="640" height="22" fill="#2e3136"/>
+      <g fill="#5a5f66"><rect x="50" y="40" width="40" height="10" rx="2"/><rect x="98" y="40" width="60" height="10" rx="2"/><rect x="166" y="40" width="30" height="10" rx="2"/></g>
+      <rect x="0" y="56" width="640" height="16" fill="#1f2226"/>
+      <rect x="40" y="58" width="70" height="12" rx="2" fill="#383b40"/><rect x="114" y="58" width="70" height="12" rx="2" fill="#44484e"/>
+      <rect x="0" y="72" width="34" height="290" fill="#1f2226"/>
+      <g fill="#5a5f66"><rect x="9" y="82" width="16" height="16" rx="3"/><rect x="9" y="106" width="16" height="16" rx="3"/><rect x="9" y="130" width="16" height="16" rx="3"/><rect x="9" y="154" width="16" height="16" rx="3"/><rect x="9" y="178" width="16" height="16" rx="3"/><rect x="9" y="202" width="16" height="16" rx="3"/></g>
+      <rect x="606" y="72" width="34" height="290" fill="#1f2226"/>
+      <g fill="#5a5f66"><rect x="615" y="82" width="16" height="16" rx="3"/><rect x="615" y="106" width="16" height="16" rx="3"/><rect x="615" y="130" width="16" height="16" rx="3"/><rect x="615" y="154" width="16" height="16" rx="3"/><rect x="615" y="178" width="16" height="16" rx="3"/><rect x="615" y="202" width="16" height="16" rx="3"/><rect x="615" y="226" width="16" height="16" rx="3"/></g>
+      <rect x="440" y="80" width="160" height="230" rx="6" fill="#2e3136" stroke="#44484e"/>
+      <rect x="440" y="80" width="160" height="20" rx="6" fill="#383b40"/>
+      <g fill="#5a5f66"><rect x="452" y="112" width="136" height="10" rx="2"/><rect x="452" y="130" width="100" height="10" rx="2"/><rect x="452" y="148" width="136" height="10" rx="2"/><rect x="452" y="166" width="80" height="10" rx="2"/><rect x="452" y="184" width="136" height="30" rx="2"/></g>
+      <rect x="110" y="86" width="270" height="250" rx="8" fill="#d6d6d6"/>
+      <rect x="126" y="102" width="238" height="218" fill="#fff"/>
+      <rect x="130" y="106" width="230" height="210" fill="none" stroke="#e3343f" stroke-width="1"/>
+      <rect x="170" y="140" width="70" height="50" fill="#f0b41e" stroke="#e3343f"/>
+      <circle cx="300" cy="230" r="38" fill="#3c78e6" stroke="#e3343f"/>
+      <rect x="0" y="362" width="640" height="18" rx="0" fill="#1f2226"/>
+      <g font-size="10" fill="#fff" font-weight="700">
+        <circle cx="471" cy="47" r="9" fill="#e3343f"/><text x="471" y="51" text-anchor="middle">1</text>
+        <circle cx="210" cy="45" r="9" fill="#e3343f"/><text x="210" y="49" text-anchor="middle">2</text>
+        <circle cx="200" cy="64" r="9" fill="#e3343f"/><text x="200" y="68" text-anchor="middle">3</text>
+        <circle cx="46" cy="90" r="9" fill="#e3343f"/><text x="46" y="94" text-anchor="middle">4</text>
+        <circle cx="245" cy="330" r="9" fill="#e3343f"/><text x="245" y="334" text-anchor="middle">5</text>
+        <circle cx="592" cy="74" r="9" fill="#e3343f"/><text x="592" y="78" text-anchor="middle">6</text>
+        <circle cx="626" cy="270" r="9" fill="#e3343f"/><text x="626" y="274" text-anchor="middle">7</text>
+        <circle cx="80" cy="371" r="8" fill="#e3343f"/><text x="80" y="375" text-anchor="middle" font-size="9">8</text>
+      </g>
+    </svg>
+    <figcaption>Esquema de la ventana de OpenCraftCutter en el espacio Diseño.</figcaption>
+  </figure>
+  <table class="ancho">
+    <tr><td><b>1 · Espacios</b></td><td>Diseño, Biblioteca y Enviar. Debajo, a la izquierda, la barra de menús: Archivo, Editar, Objeto, Ver, Zoom y Rotar página, y botones rápidos (nuevo, abrir, guardar, deshacer, zoom…).</td></tr>
+    <tr><td><b>2 · Barra de estilo</b></td><td>Cambia según la selección y la herramienta: colores de relleno y trazo, grosor, tamaño y posición, fuente del texto o las acciones de Editar puntos.</td></tr>
+    <tr><td><b>3 · Pestañas</b></td><td>Cada documento abierto tiene su pestaña. <kbd>⌘W</kbd> cierra la activa.</td></tr>
+    <tr><td><b>4 · Herramientas</b></td><td>Seleccionar, Editar puntos, Línea, Rectángulo, Elipse, Polígono, Mano alzada, Texto, Borrador, Cuchilla, Desplazar y Zoom.</td></tr>
+    <tr><td><b>5 · Lienzo</b></td><td>El tapete gris con la página blanca. La línea roja marca el área que la máquina puede cortar.</td></tr>
+    <tr><td><b>6 · Panel</b></td><td>El panel abierto (aquí, Configuración de página). Se cierra con su ×.</td></tr>
+    <tr><td><b>7 · Raíl de paneles</b></td><td>Iconos para abrir cada panel: Página, Transformar, Relleno, Trazo, Texto, Capas, Modificar, Desplazamiento, Trazar, Replicar…</td></tr>
+    <tr><td><b>8 · Barra de estado</b></td><td>Posición del cursor y, si hay selección, cuántos objetos y su tamaño. También muestra avisos breves.</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 2 PRIMER PROYECTO ============================ -->
+<section class="cap" id="primer">
+  <p class="kicker">Capítulo 2</p>
+  <h2>Tu primer proyecto, paso a paso</h2>
+  <p class="entrada">En diez minutos harás una etiqueta con un nombre dentro de un marco redondeado, la probarás en la máquina y la cortarás. Por el camino conocerás las piezas básicas del programa.</p>
+
+  <ol class="pasos">
+    <li><strong>Crea un documento.</strong> Pulsa <kbd>⌘N</kbd>. Si prefieres que te guíe, usa <span class="ui">Archivo → Nuevo asistente de proyecto</span> <kbd>⇧⌘N</kbd>, que abre la configuración de página con una guía.</li>
+    <li><strong>Elige máquina y tapete.</strong> Abre <span class="ui">Configuración de página</span> (primer icono del raíl derecho). Deja <span class="ui">Máquina: Auto (CAMEO 5)</span> o elige tu modelo, y como <span class="ui">Tapete de corte</span> el que vas a usar. El tamaño de medios <span class="ui">Auto</span> se ajusta al tapete.</li>
+    <li><strong>Dibuja el marco.</strong> Pulsa <kbd>R</kbd> (Rectángulo) y arrastra sobre la página. Mantén <kbd>⇧</kbd> si lo quieres cuadrado. En el panel <span class="ui">Transformar</span> puedes escribir el ancho y el alto exactos.</li>
+    <li><strong>Escribe el nombre.</strong> Pulsa <kbd>T</kbd>, haz clic dentro del marco y escribe. Pulsa <kbd>Esc</kbd> para terminar. En el panel <span class="ui">Estilo de texto</span> elige la fuente y el tamaño.</li>
+    <li><strong>Céntralo todo.</strong> Selecciona ambos objetos (<kbd>⌘A</kbd>) y en <span class="ui">Objeto → Alinear → Alinear al centro hor+vert</span>. Después, <span class="ui">Objeto → Modificar → Agrupar</span> <kbd>⌘G</kbd> para moverlos juntos.</li>
+    <li><strong>Guarda.</strong> <kbd>⌘S</kbd> guarda un archivo <code>.opencraftcutter</code>. Si lo guardas dentro de la carpeta de la biblioteca, aparecerá en <span class="ui">BIBLIOTECA</span>.</li>
+    <li><strong>Ve a Enviar.</strong> Pulsa la pestaña <span class="ui">ENVIAR</span>. En la tarjeta de la máquina pulsa <span class="ui">Conectar</span> con la CAMEO encendida y Silhouette Studio cerrado.</li>
+    <li><strong>Elige el material.</strong> En el desplegable de material escribe, por ejemplo, «cartulina» y elige <span class="ui">Cartulina, lisa</span>. La presión, velocidad, pasadas y profundidad se cargan solas.</li>
+    <li><strong>Haz un corte de prueba.</strong> Pulsa <span class="ui">Generar forma de prueba</span> y luego <span class="ui">Enviar prueba</span>. La máquina corta un cuadrado de 10 mm con un triángulo dentro. Si el triángulo se desprende limpio y el soporte no queda marcado, los ajustes son buenos (ver <a href="#prueba">Corte de prueba</a>).</li>
+    <li><strong>¡Corta!</strong> Carga el tapete con el material en la máquina y pulsa <span class="ui">ENVIAR</span>.</li>
+  </ol>
+  <div class="aviso"><p><strong>Antes del primer corte real</strong> haz siempre la prueba sobre un trozo de material de descarte. Una profundidad o presión excesivas pueden marcar el tapete o desgastar la cuchilla.</p></div>
+</section>
+
+<!-- ============================ 3 PÁGINA ============================ -->
+<section class="cap" id="pagina">
+  <p class="kicker">Capítulo 3</p>
+  <h2>Configuración de página</h2>
+  <p class="entrada">Define en qué máquina vas a cortar, sobre qué tapete y de qué tamaño es el material. Todo lo que dibujas se coloca sobre esa página.</p>
+
+  <h3 id="maquina">Máquina, tapete y medios</h3>
+  <table class="ancho">
+    <tr><th>Ajuste</th><th>Qué hace</th></tr>
+    <tr><td><span class="ui">Máquina</span></td><td>Modelo de cortadora: CAMEO 5, 5 Plus, Pro Mark 2, CAMEO 4, Plus, Pro, Portrait 3 y 4, CURIO 2 y modelos heredados. Determina el ancho máximo de corte y los tapetes disponibles. <span class="ui">Auto</span> usa la CAMEO 5.</td></tr>
+    <tr><td><span class="ui">Tipo de alimentación</span></td><td>Cómo entra el material: con tapete o en rollo.</td></tr>
+    <tr><td><span class="ui">Tapete de corte</span></td><td>El tapete físico. <span class="ui">Auto</span> elige el de la máquina: 12 × 12 in en la CAMEO 5, 15 × 15 in en los modelos Plus y 24 × 24 in en los Pro. <span class="ui">Ninguna</span> es para materiales con soporte propio (vinilo, transferencia térmica).</td></tr>
+    <tr><td><span class="ui">Tamaño de medios</span></td><td>Tamaño del material: Carta, A4, A5, A6, 5×7, 12×12… o <span class="ui">A medida</span> con ancho y alto propios. Los modelos Pro añaden 24×24, 12×24 y A3.</td></tr>
+    <tr><td><span class="ui">Restringir los medios a la alfombrilla de corte</span></td><td>Impide que la página sea mayor que el área de corte del tapete.</td></tr>
+    <tr><td><span class="ui">Vertical / Apaisado</span></td><td>Intercambia ancho y alto de la página.</td></tr>
+    <tr><td><span class="ui">Transparencia y color</span></td><td>Color de la página y su transparencia, útil para ver cómo quedará sobre un material de color.</td></tr>
+    <tr><td><span class="ui">Rotar previsualización</span></td><td>Gira la vista de la página 90°, 180° o 270° sin cambiar el diseño.</td></tr>
+  </table>
+
+  <h3 id="reticula">Retícula y ajuste inteligente</h3>
+  <p>En la segunda pestaña del panel, o en el menú <span class="ui">Ver</span>:</p>
+  <ul>
+    <li><span class="ui">Mostrar retícula</span> y <span class="ui">Ajustar a retícula</span>: cuadrícula cuadrada o isométrica, con <span class="ui">Espaciado</span> y <span class="ui">Divisiones</span>.</li>
+    <li><span class="ui">Habilitar ajuste inteligente</span>: al mover, los objetos se alinean solos con los bordes y centros de la página y de otros objetos, con una <span class="ui">Tolerancia</span> configurable.</li>
+    <li><span class="ui">Mostrar bordes de corte</span> <kbd>⇧⌘L</kbd> (la línea roja) y <span class="ui">Mostrar bordes de impresión</span> <kbd>⇧⌘P</kbd> (el margen de tu impresora, para Imprimir y cortar).</li>
+  </ul>
+  <div class="truco"><p>Las unidades (cm, mm o pulgadas), el espaciado de retícula y el margen de corte por defecto de los documentos nuevos se cambian en <a href="#preferencias">Preferencias</a>.</p></div>
+</section>
+
+<!-- ============================ 4 DIBUJAR ============================ -->
+<section class="cap" id="dibujar">
+  <p class="kicker">Capítulo 4</p>
+  <h2>Dibujar y seleccionar</h2>
+  <p class="entrada">Las herramientas están en la columna izquierda. Cada una tiene una tecla: pulsa la letra en cualquier momento (sin estar escribiendo texto) para cambiar de herramienta.</p>
+
+  <h3 id="herramientas">Herramientas</h3>
+  <table class="ancho">
+    <tr><th>Herramienta</th><th>Cómo se usa</th></tr>
+    <tr><td><span class="ui">Seleccionar</span> <kbd>V</kbd></td><td>Clic para seleccionar; <kbd>⇧</kbd>+clic para añadir o quitar; arrastra en vacío para seleccionar con un rectángulo. Doble clic sobre una forma entra en Editar puntos; sobre un texto, lo edita.</td></tr>
+    <tr><td><span class="ui">Editar puntos</span> <kbd>A</kbd></td><td>Mueve nodos y manejadores de curva. Ver <a href="#puntos">Editar puntos</a>.</td></tr>
+    <tr><td><span class="ui">Línea</span> <kbd>L</kbd></td><td>Arrastra de un extremo a otro.</td></tr>
+    <tr><td><span class="ui">Rectángulo</span> <kbd>R</kbd></td><td>Arrastra en diagonal. Con <kbd>⇧</kbd>, cuadrado.</td></tr>
+    <tr><td><span class="ui">Elipse</span> <kbd>E</kbd></td><td>Arrastra en diagonal. Con <kbd>⇧</kbd>, círculo.</td></tr>
+    <tr><td><span class="ui">Polígono</span> <kbd>G</kbd></td><td>Un clic por vértice; doble clic cierra la forma.</td></tr>
+    <tr><td><span class="ui">Mano alzada</span> <kbd>P</kbd></td><td>Dibuja arrastrando, como con un lápiz.</td></tr>
+    <tr><td><span class="ui">Texto</span> <kbd>T</kbd></td><td>Clic en el lienzo y escribe. Ver <a href="#texto">Texto</a>.</td></tr>
+    <tr><td><span class="ui">Borrador</span></td><td>Arrastra sobre las formas para borrar esa franja. El grosor se ajusta en Preferencias.</td></tr>
+    <tr><td><span class="ui">Cuchilla</span></td><td>Arrastra una línea a través de una forma para partirla en dos.</td></tr>
+    <tr><td><span class="ui">Desplazar</span> <kbd>H</kbd></td><td>Arrastra para mover la vista. También puedes mantener <kbd>Espacio</kbd> con cualquier herramienta.</td></tr>
+    <tr><td><span class="ui">Zoom de arrastre</span> <kbd>Z</kbd></td><td>Arrastra un rectángulo para acercarte a esa zona; clic acerca, <kbd>⌥</kbd>+clic aleja.</td></tr>
+  </table>
+
+  <h3 id="seleccion">Seleccionar y transformar con el ratón</h3>
+  <ul>
+    <li><strong>Mover:</strong> arrastra la selección. Con <kbd>⇧</kbd> el movimiento queda en horizontal o vertical. Con las flechas se mueve 1 mm (10 mm con <kbd>⇧</kbd>).</li>
+    <li><strong>Escalar:</strong> arrastra los cuadraditos de las esquinas o los lados. Con <kbd>⇧</kbd> se mantiene la proporción.</li>
+    <li><strong>Girar:</strong> arrastra el punto verde que aparece encima de la selección.</li>
+    <li><strong>Duplicar:</strong> <kbd>⌘D</kbd>. <strong>Copiar y pegar:</strong> <kbd>⌘C</kbd> / <kbd>⌘V</kbd>; <span class="ui">Pegar delante</span> <kbd>⌘F</kbd> pega en el mismo sitio.</li>
+    <li><strong>Borrar:</strong> <kbd>⌫</kbd>. Los objetos bloqueados en <a href="#organizar">Capas</a> no se borran ni se mueven.</li>
+    <li><strong>Seleccionar por color:</strong> <span class="ui">Editar → Seleccionar por color…</span> selecciona todas las formas con el mismo color de línea o de relleno.</li>
+  </ul>
+
+  <h3 id="vista">Moverse por el lienzo</h3>
+  <div class="col2">
+    <p><strong>Trackpad:</strong> desliza con dos dedos para desplazarte y pellizca para hacer zoom.</p>
+    <p><strong>Ratón:</strong> la rueda desplaza; <kbd>⌘</kbd>+rueda hace zoom alrededor del cursor.</p>
+    <p><kbd>⌘+</kbd> / <kbd>⌘−</kbd> acercan y alejan; <kbd>⌘0</kbd> ajusta la página a la ventana.</p>
+    <p><kbd>⌘2</kbd> hace zoom a la selección; <kbd>⌘1</kbd> también ajusta a la página.</p>
+  </div>
+</section>
+
+<!-- ============================ 5 EDITAR PUNTOS ============================ -->
+<section class="cap" id="puntos">
+  <p class="kicker">Capítulo 5</p>
+  <h2>Editar puntos</h2>
+  <p class="entrada">Toda forma está hecha de nodos unidos por tramos rectos o curvos. Editar puntos te deja moverlos, añadir o quitar nodos y cambiar el tipo de cada tramo.</p>
+
+  <p>Entra con <kbd>A</kbd> o con doble clic sobre una forma. Los nodos aparecen como cuadraditos; al seleccionar uno, sus manejadores de curva aparecen como puntos unidos por una línea.</p>
+  <ul>
+    <li><strong>Mover un nodo:</strong> arrástralo. <kbd>⇧</kbd>+clic añade nodos a la selección para moverlos juntos.</li>
+    <li><strong>Añadir un nodo:</strong> haz clic sobre la línea.</li>
+    <li><strong>Curvar:</strong> arrastra un manejador. En un nodo suave, los dos manejadores se mueven alineados.</li>
+    <li><strong>Borrar un nodo:</strong> <kbd>⌫</kbd> (en este modo nunca borra la forma entera).</li>
+  </ul>
+
+  <h3>Acciones del panel</h3>
+  <p>Están en el panel <span class="ui">Editar puntos</span> y también en la barra superior mientras usas la herramienta.</p>
+  <table class="ancho">
+    <tr><th>Acción</th><th>Qué hace</th></tr>
+    <tr><td><span class="ui">Borrar punto</span></td><td>Quita el nodo seleccionado; los tramos vecinos se unen.</td></tr>
+    <tr><td><span class="ui">Romper trazado</span></td><td>Abre la forma en el nodo seleccionado. Un trazado cerrado queda abierto ahí; uno abierto se parte en dos.</td></tr>
+    <tr><td><span class="ui">Unir trazados</span></td><td>Con un extremo de un trazado abierto seleccionado, lo une con el extremo libre más cercano de la misma forma. Los dos extremos se funden en un único nodo en su punto medio. Si el extremo más cercano es el otro extremo del mismo trazado, la forma se cierra. Deshace exactamente un «Romper trazado».</td></tr>
+    <tr><td><span class="ui">Vértice</span></td><td>Nodo en esquina: sus dos manejadores se mueven por separado.</td></tr>
+    <tr><td><span class="ui">Suavizar</span></td><td>Nodo suave: manejadores alineados para una curva continua.</td></tr>
+    <tr><td><span class="ui">Convertir en recta / en curva</span></td><td>Cambia el tramo resaltado entre recto y curvo.</td></tr>
+    <tr><td><span class="ui">Simplificar</span> <kbd>⌘J</kbd></td><td>Reduce el número de nodos manteniendo la forma. Muy útil tras trazar una imagen.</td></tr>
+    <tr><td><span class="ui">Convertir en trazado</span></td><td>Convierte rectángulos, elipses y textos en trazados editables nodo a nodo.</td></tr>
+  </table>
+  <p>La sección <span class="ui">Recuento de nodos</span> muestra cuántas formas, contornos y nodos (lineales y de Bézier) tiene la selección.</p>
+</section>
+
+<!-- ============================ 6 TEXTO ============================ -->
+<section class="cap" id="texto">
+  <p class="kicker">Capítulo 6</p>
+  <h2>Texto</h2>
+  <p class="entrada">OpenCraftCutter usa las fuentes instaladas en tu Mac. Los textos siguen siendo editables hasta que los conviertes en trazado.</p>
+
+  <ul>
+    <li><strong>Crear:</strong> herramienta Texto <kbd>T</kbd>, clic en el lienzo y escribe. <kbd>Esc</kbd> termina.</li>
+    <li><strong>Editar:</strong> doble clic sobre el texto.</li>
+    <li><strong>Panel Estilo de texto:</strong> busca la fuente por nombre (con vista previa de tu propio texto), elige Normal, Negrita, Cursiva o Negrita cursiva, el tamaño, la alineación (izquierda, centrar, derecha, justificar), el subrayado, el texto horizontal o vertical, el espaciado de caracteres y de líneas y el interletraje (pares como «AV» más juntos).</li>
+    <li><strong>Convertir en trazado:</strong> desde <span class="ui">Objeto → Modificar → Convertir en trazado</span> o en Editar puntos. Hazlo si vas a modificar letras o enviar el diseño a un ordenador sin esa fuente.</li>
+  </ul>
+  <div class="nota"><p><strong>Letras que se tocan.</strong> En fuentes manuscritas las letras se solapan; si las cortas así, cada letra se corta por separado y el corte atraviesa las uniones. Selecciona el texto y pulsa <span class="ui">Fusionar</span> <kbd>⇧⌘W</kbd>: las letras se unen en un solo contorno. Las operaciones de <a href="#booleanas">Modificar</a> convierten el texto en trazado automáticamente.</p></div>
+</section>
+
+<!-- ============================ 7 ESTILO ============================ -->
+<section class="cap" id="estilo">
+  <p class="kicker">Capítulo 7</p>
+  <h2>Relleno y trazo</h2>
+  <p class="entrada">El color de relleno es para ver e imprimir; el color de la línea puede servir además para decidir cómo se corta cada forma (ver <a href="#modos">Cortar por color de línea</a>).</p>
+
+  <div class="dos">
+    <div>
+      <h3>Relleno</h3>
+      <ul>
+        <li><span class="ui">Color de relleno</span> con paletas, colores usados recientemente y un selector personalizado (HEX, RGB o HSL).</li>
+        <li><span class="ui">Sin relleno</span> deja la forma vacía.</li>
+        <li><span class="ui">Transparencia</span> del relleno.</li>
+        <li><span class="ui">Degradado de relleno</span>: haz clic en la barra para añadir colores, arrastra los marcadores y ajusta el ángulo.</li>
+        <li>Cuentagotas: toma el color de una forma del lienzo.</li>
+        <li>Paletas propias: <span class="ui">Crear paleta</span> y <span class="ui">Añadir el color actual a esta paleta</span>.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Estilo de trazo</h3>
+      <ul>
+        <li><span class="ui">Color de trazo</span> y su transparencia.</li>
+        <li><span class="ui">Grosor</span> en puntos. 0 pt es una línea de corte fina: se ve siempre pero no tiene grosor.</li>
+        <li><span class="ui">Estilo</span> (continuo, discontinuo…), <span class="ui">Vértice</span> y <span class="ui">Remates</span>.</li>
+        <li><span class="ui">Posicionar</span>: centrado en el borde o hacia dentro de la forma.</li>
+        <li><span class="ui">Imprimir líneas de las formas seleccionadas</span> para que el trazo salga en Imprimir y cortar.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="truco"><p>Sin nada seleccionado, el color que elijas se usará en las formas nuevas que dibujes.</p></div>
+</section>
+
+<!-- ============================ 8 ORGANIZAR ============================ -->
+<section class="cap" id="organizar">
+  <p class="kicker">Capítulo 8</p>
+  <h2>Organizar, transformar y capas</h2>
+
+  <h3>Menú Objeto</h3>
+  <table class="ancho">
+    <tr><th>Submenú</th><th>Opciones</th></tr>
+    <tr><td><span class="ui">Espejo</span></td><td>Voltear horizontalmente o verticalmente.</td></tr>
+    <tr><td><span class="ui">Organizar</span></td><td>Traer al frente <kbd>⇧⌘]</kbd>, Enviar detrás <kbd>⇧⌘[</kbd>, Hacia delante <kbd>⌘]</kbd>, Hacia atrás <kbd>⌘[</kbd>.</td></tr>
+    <tr><td><span class="ui">Alinear</span></td><td>Izquierda, centro, derecha, arriba, centro vertical, abajo, centro hor+vert; distribuir horizontal o verticalmente; centrar en página. Con un solo objeto se alinea con el área de corte.</td></tr>
+    <tr><td><span class="ui">Rotar</span></td><td>Girar 45°, 90° o 180° en cualquier sentido, o fijar el ángulo a 0°, 90°, 180° o 270°.</td></tr>
+    <tr><td><span class="ui">Replicar</span></td><td>Atajos de <a href="#replicar">Replicar</a>: duplicar o reflejar hacia un lado, copias rotadas, filas, columnas y <span class="ui">Llenar página</span> <kbd>⇧⌘F</kbd>.</td></tr>
+    <tr><td><span class="ui">Modificar</span></td><td>Operaciones de <a href="#booleanas">Modificar</a>, Agrupar <kbd>⌘G</kbd>, Desagrupar <kbd>⇧⌘G</kbd>, Crear trazado compuesto <kbd>⌘E</kbd>, Soltar trazado compuesto <kbd>⇧⌘E</kbd>, Convertir en trazado y Simplificar <kbd>⌘J</kbd>.</td></tr>
+  </table>
+
+  <h3>Panel Transformar</h3>
+  <p>Cinco pestañas para trabajar con números exactos:</p>
+  <ul>
+    <li><strong>Alinear y Distribuir</strong> (distribuir necesita 3 objetos o más).</li>
+    <li><strong>Escalar:</strong> por porcentaje o con <span class="ui">Especificar dimensiones</span> y <span class="ui">Mantener la proporción</span>.</li>
+    <li><strong>Rotar:</strong> ángulo exacto, girando la selección como grupo o cada objeto por separado.</li>
+    <li><strong>Mover:</strong> desplazar una distancia en cada dirección, o <span class="ui">Mover hasta</span> una posición X, Y eligiendo qué punto de la selección se coloca ahí.</li>
+  </ul>
+
+  <h3>Grupos</h3>
+  <p>Un grupo se selecciona y mueve como un solo objeto. Los grupos pueden contener otros grupos: <span class="ui">Desagrupar</span> quita solo el nivel exterior.</p>
+
+  <h3>Panel Capas</h3>
+  <p>Lista todos los objetos del documento, del frontal al del fondo. En cada fila puedes ocultar o mostrar el objeto (el ojo), bloquearlo para que no se mueva ni se borre (el candado) y cambiar su orden.</p>
+</section>
+
+<!-- ============================ 9 MODIFICAR ============================ -->
+<section class="cap" id="modificar">
+  <p class="kicker">Capítulo 9</p>
+  <h2>Modificar formas</h2>
+
+  <h3 id="booleanas">Fusionar, restar, dividir…</h3>
+  <p>Selecciona dos o más formas cerradas y abre el panel <span class="ui">Modificar</span> (o el menú <span class="ui">Objeto → Modificar</span>).</p>
+  <table class="ancho">
+    <tr><th>Operación</th><th>Resultado</th></tr>
+    <tr><td><span class="ui">Fusionar</span> <kbd>⇧⌘W</kbd></td><td>Une las formas en una sola. También funciona con <strong>un solo texto</strong>: en fuentes manuscritas une las letras que se tocan en un único contorno, para que se corte como una pieza.</td></tr>
+    <tr><td><span class="ui">Interseccionar</span></td><td>Conserva solo la zona común a todas.</td></tr>
+    <tr><td><span class="ui">Sustraer</span></td><td>Resta la forma de delante de cada una de las de detrás.</td></tr>
+    <tr><td><span class="ui">Sustraer todo</span></td><td>Resta todas las formas de delante de la de más atrás.</td></tr>
+    <tr><td><span class="ui">Recortar</span></td><td>Recorta las formas de detrás a la silueta de la de delante.</td></tr>
+    <tr><td><span class="ui">Dividir</span></td><td>Corta las formas en todas sus piezas.</td></tr>
+    <tr><td><span class="ui">Separar trazos</span></td><td>Separa las islas en formas; cada una conserva sus agujeros.</td></tr>
+    <tr><td><span class="ui">Crear trazado compuesto</span></td><td>Une las formas en un trazado compuesto: los solapes se vuelven agujeros.</td></tr>
+    <tr><td><span class="ui">Soltar trazado compuesto</span></td><td>Convierte cada trazo del compuesto en una forma (los agujeros también).</td></tr>
+  </table>
+
+  <h3 id="desplazamiento">Desplazamiento (contornos)</h3>
+  <p>Crea un contorno exterior o interior a una <span class="ui">Distancia</span> dada, con esquinas en <span class="ui">Vértice</span> o <span class="ui">Redondeado</span> y un <span class="ui">Límite de esquina</span>. Es la forma habitual de hacer el borde blanco de una pegatina: desplazamiento de 2–3 mm alrededor del diseño.</p>
+
+  <h3 id="replicar">Replicar</h3>
+  <ul>
+    <li><strong>Duplicar o reflejar</strong> a la izquierda, derecha, arriba o abajo.</li>
+    <li><strong>Rotar copias</strong> alrededor de un punto: número de copias, ángulo de inicio y giro de cada una.</li>
+    <li><strong>Filas y columnas</strong> (fila de 3, columna de 4…) o <span class="ui">Replicar a medida</span> con número y desplazamiento X / Y.</li>
+    <li><strong>Llenar página</strong> con el mayor número de copias que caben.</li>
+    <li><strong>Objeto en ruta:</strong> repite un objeto a lo largo de una figura guía (la más grande de la selección), con número de repeticiones, longitud del paso y la opción de girar cada copia en perpendicular a la ruta.</li>
+  </ul>
+</section>
+
+<!-- ============================ 10 IMÁGENES ============================ -->
+<section class="cap" id="imagenes">
+  <p class="kicker">Capítulo 10</p>
+  <h2>Imágenes y trazado</h2>
+  <p class="entrada">Importa fotos y dibujos (PNG, JPG…) con <span class="ui">Archivo → Importar imagen…</span> <kbd>⇧⌘M</kbd> o arrastrándolos desde el Finder al lienzo. Una imagen no se corta: para cortarla hay que trazarla.</p>
+
+  <h3 id="trazar">Trazar una imagen</h3>
+  <ol class="pasos">
+    <li>Selecciona la imagen y abre el panel <span class="ui">Trazar</span>.</li>
+    <li>Opcional: <span class="ui">Seleccionar área de trazado</span> y arrastra un rectángulo para trazar solo una parte.</li>
+    <li>Ajusta el <span class="ui">Umbral</span>: en amarillo verás lo que se trazará. Usa <span class="ui">Invertir</span> para trazar lo claro.</li>
+    <li>Refina con <span class="ui">Filtro de paso alto</span> (realza bordes en fotos), <span class="ui">Filtro de paso bajo</span> (suaviza el ruido), <span class="ui">Umbral de eliminación de manchas</span>, <span class="ui">Calidad del trazo</span> y <span class="ui">Suavizar curvas</span>.</li>
+    <li>Elige cómo trazar:
+      <ul>
+        <li><span class="ui">Trazar</span>: líneas de corte en todos los bordes, agujeros incluidos.</li>
+        <li><span class="ui">Trazar contorno externo</span>: solo la silueta exterior de cada zona.</li>
+        <li><span class="ui">Trazar y separar</span>: traza el contorno exterior y recorta la imagen a esa forma, perfecto para pegatinas.</li>
+        <li><span class="ui">Por colores</span>: una forma por cada color de la imagen.</li>
+      </ul></li>
+  </ol>
+  <div class="truco"><p>Las imágenes PNG con fondo transparente se trazan mejor con el contorno externo: el borde sigue exactamente la transparencia, incluidos cabellos y detalles finos.</p></div>
+
+  <h3 id="pixscan">PixScan</h3>
+  <p>Con un tapete PixScan puedes cortar alrededor de un dibujo o una pieza que ya tienes en papel:</p>
+  <ol class="pasos">
+    <li><strong>Calibra la cámara una vez:</strong> <span class="ui">Mostrar tarjeta de prueba de calibración</span>, imprímela, fotografíala y añádela con <span class="ui">Añadir calibración desde la foto de la tarjeta de prueba</span>.</li>
+    <li>Coloca el material en el tapete PixScan y fotografíalo entero, o escanéalo (<span class="ui">Archivo → Escanear…</span>).</li>
+    <li><span class="ui">Importar imagen PixScan desde archivo</span>. En la ventana que se abre, marca las cuatro esquinas del tapete sobre la foto; OpenCraftCutter corrige la perspectiva (y la distorsión de la cámara, si la calibraste) y coloca la imagen en su sitio real con <span class="ui">Colocar en el tapete</span>.</li>
+    <li>Traza la imagen o dibuja encima, y envía el corte con el tapete PixScan cargado.</li>
+  </ol>
+
+  <h3 id="printcut">Imprimir y cortar</h3>
+  <p>Para pegatinas impresas: OpenCraftCutter imprime el diseño con unas marcas de registro que la CAMEO lee con su sensor para cortar exactamente alrededor de lo impreso.</p>
+  <ol class="pasos">
+    <li>En el panel <span class="ui">Imprimir y cortar</span>, activa <span class="ui">Activar marcas de registro</span>. Los valores <span class="ui">Por defecto</span> funcionan en casi todos los casos; si no, ajusta longitud, grosor e inserciones.</li>
+    <li>Opcional: <span class="ui">Activar sangrado de impresión</span> imprime los rellenos un poco más grandes que el corte para evitar bordes blancos.</li>
+    <li>Imprime con <span class="ui">Archivo → Imprimir…</span> <kbd>⌘P</kbd>. Se abre una página lista para imprimir (diseño y marcas, sin las líneas de corte) en Vista Previa.</li>
+    <li>Pon la hoja en el tapete, arriba a la izquierda, y envía. Antes de cortar, la CAMEO <strong>busca las marcas con su sensor</strong> (la barra muestra «Buscando marcas de registro…») y alinea el corte con lo impreso aunque la hoja no esté perfectamente recta. Si no las encuentra, avisa y no corta nada.</li>
+  </ol>
+  <p>Con las marcas activas, Enviar avisa si alguna línea queda <strong>fuera del marco</strong> entre las marcas (no se cortaría) o <strong>sobre las zonas rayadas</strong> de las marcas (puede estorbar la lectura). Para pegatinas, la <a href="#pegatinas">Hoja de pegatinas</a> lo prepara todo en un paso.</p>
+  <div class="aviso"><p>No muevas ni escales el diseño después de imprimir: las marcas de registro y el corte deben coincidir con lo impreso. Las marcas de estilo <span class="ui">Invertido</span> todavía no se pueden leer: usa el estilo <span class="ui">Por defecto</span>.</p></div>
+</section>
+
+<!-- ============================ 11 ESPECIALES ============================ -->
+<section class="cap" id="especiales">
+  <p class="kicker">Capítulo 11</p>
+  <h2>Pedrería, boceto y herramientas especiales</h2>
+
+  <h3>Pedrería</h3>
+  <p>Rellena una forma con círculos del tamaño de la piedra para cortar una plantilla de strass. Elige el tamaño (SS6 de 2,0 mm a SS20 de 4,7 mm, o un diámetro propio), la <span class="ui">Separación</span> y la disposición: <span class="ui">Contorno</span>, <span class="ui">Relleno</span> o <span class="ui">Ambos</span>. Pulsa <span class="ui">Generar pedrería</span>.</p>
+
+  <h3>Boceto</h3>
+  <p>Genera un sombreado de líneas dentro de la forma para dibujarlo con rotuladores: <span class="ui">Ángulo</span>, <span class="ui">Separación</span> y <span class="ui">Cruzado</span> (dos direcciones). Puedes conservar la forma original.</p>
+
+  <h3>Herramientas especiales</h3>
+  <table class="ancho">
+    <tr><th>Herramienta</th><th>Qué prepara</th></tr>
+    <tr><td><span class="ui">Puntuar y grabar en relieve</span></td><td>Muescas y líneas de gofrado: la cuchilla (portaherramientas 1) marca el contorno y la herramienta de relieve (portaherramientas 2) presiona por dentro. En alto o en bajo relieve.</td></tr>
+    <tr><td><span class="ui">Lápiz térmico</span></td><td>Rellenos para foil activado por calor, con punta fina de 1 mm o ancha de 3 mm.</td></tr>
+    <tr><td><span class="ui">Grabador eléctrico</span></td><td>Rellenos para grabar patrones en materiales sólidos, como la madera.</td></tr>
+    <tr><td><span class="ui">Punzón de cuero</span></td><td>Coloca puntos de perforación con un clic en el lienzo; <kbd>Esc</kbd> termina.</td></tr>
+    <tr><td><span class="ui">Tallador de cuero</span></td><td>Patrones de estampado para cuero fino y sintético.</td></tr>
+  </table>
+  <p><span class="estado dev">En desarrollo</span> Los paneles <span class="ui">Deformar</span> y <span class="ui">Relieve</span> y la herramienta <span class="ui">Nota</span> todavía no están terminados.</p>
+</section>
+
+<!-- ============================ 12 ARCHIVOS ============================ -->
+<section class="cap" id="archivos">
+  <p class="kicker">Capítulo 12</p>
+  <h2>Archivos</h2>
+
+  <h3 id="formatos">Formatos que entiende OpenCraftCutter</h3>
+  <table class="ancho">
+    <tr><th>Formato</th><th>Abrir / importar</th><th>Guardar / exportar</th></tr>
+    <tr><td><code>.opencraftcutter</code></td><td>Sí: el formato propio, guarda todo.</td><td>Sí: <kbd>⌘S</kbd>, <kbd>⇧⌘S</kbd>.</td></tr>
+    <tr><td><code>.studio3</code></td><td>Sí: abrir o arrastrar.</td><td>Sí: <span class="ui">Exportar como .studio3…</span></td></tr>
+    <tr><td><code>.svg</code></td><td>Sí: <kbd>⇧⌘I</kbd>.</td><td>Sí: <kbd>⌥⌘E</kbd>.</td></tr>
+    <tr><td>PNG, JPG…</td><td>Sí, como imagen: <kbd>⇧⌘M</kbd>.</td><td>—</td></tr>
+    <tr><td>PDF</td><td>—</td><td>Al imprimir (<kbd>⌘P</kbd>) se genera un PDF.</td></tr>
+  </table>
+  <ul>
+    <li><span class="ui">Abrir reciente</span> lista los últimos archivos.</li>
+    <li><span class="ui">Combinar…</span> <kbd>⇧⌘O</kbd> añade el contenido de otro archivo al documento actual.</li>
+    <li><span class="ui">Guardar selección</span> guarda solo lo seleccionado, en disco o en la biblioteca.</li>
+    <li>Arrastra archivos desde el Finder al lienzo para insertarlos donde los sueltes.</li>
+  </ul>
+
+  <h3 id="studio3">Trabajar con Silhouette Studio (.studio3)</h3>
+  <p>OpenCraftCutter abre los documentos de Silhouette Studio y también puede crearlos, para que pases tus diseños de un programa a otro.</p>
+  <h4>Al abrir un .studio3 se conserva</h4>
+  <p>Formas y curvas, trazados compuestos, rotación, colores de línea y relleno con su transparencia, imágenes incrustadas recortadas a su contorno, textos editables, grupos (también grupos dentro de grupos), tamaño de los medios y marcas de registro.</p>
+  <h4>Al exportar a .studio3 se escribe</h4>
+  <ul>
+    <li>Formas, rectángulos (también redondeados) y elipses, con rotación, colores y transparencia del relleno.</li>
+    <li>Grupos y grupos anidados.</li>
+    <li>Imágenes, también giradas.</li>
+    <li><strong>Textos editables</strong> de una línea: en Silhouette Studio se pueden seguir editando. Los textos de varias líneas, subrayados, con espaciado de caracteres modificado o verticales se exportan convertidos en trazados (se ven igual, pero ya no son texto).</li>
+    <li>El tamaño de página (los tamaños 24x24, 12x24 y A3 se exportan como «A medida» con sus medidas exactas) y una miniatura para la biblioteca de Silhouette Studio.</li>
+  </ul>
+  <div class="nota"><p>Para que un texto exportado se vea igual al editarlo en Silhouette Studio, el otro ordenador debe tener instalada la misma fuente.</p></div>
+
+  <h3 id="recuperacion">Copia automática y recuperación</h3>
+  <p>Cada 2 minutos, si hay cambios sin guardar, OpenCraftCutter guarda una copia de seguridad del documento en <code>~/Library/Application Support/OpenCraftCutter</code>. Si el programa se cierra inesperadamente, usa <span class="ui">Archivo → Abre un archivo recuperado…</span>.</p>
+  <p>El historial de <span class="ui">Deshacer</span> <kbd>⌘Z</kbd> / <span class="ui">Rehacer</span> <kbd>⇧⌘Z</kbd> cubre todos los cambios del documento.</p>
+</section>
+
+<!-- ============================ 13 BIBLIOTECA ============================ -->
+<section class="cap" id="biblioteca">
+  <p class="kicker">Capítulo 13</p>
+  <h2>La Biblioteca</h2>
+  <p class="entrada">La biblioteca es una carpeta de tu Mac (por defecto <code>~/Documents/OpenCraftCutter</code>) vista como un catálogo con miniaturas. Lo que guardes ahí aparece aquí, y viceversa.</p>
+  <ul>
+    <li><strong>Secciones:</strong> <span class="ui">Recientes</span> (lo último que abriste o guardaste), <span class="ui">Todos los diseños</span> y el árbol de carpetas.</li>
+    <li><strong>Buscar:</strong> escribe en <span class="ui">Buscar en la biblioteca…</span>; busca en todas las subcarpetas.</li>
+    <li><strong>Ver:</strong> en <span class="ui">Cuadrícula</span> o <span class="ui">Lista</span>, ordenando por nombre, fecha, tamaño o tipo.</li>
+    <li><strong>Abrir:</strong> doble clic abre el diseño en una pestaña nueva. Con clic derecho: <span class="ui">Abrir en pestaña nueva</span>, <span class="ui">Añadir al documento actual</span>, <span class="ui">Renombrar…</span>, <span class="ui">Mover a</span>, <span class="ui">Mostrar en Finder</span> o <span class="ui">Enviar a la Papelera</span>.</li>
+    <li><strong>Carpetas:</strong> <span class="ui">Nueva carpeta</span> en la barra de la biblioteca.</li>
+    <li><strong>Añadir diseños:</strong> arrastra archivos desde el Finder, o usa <span class="ui">Archivo → Biblioteca → Importar a biblioteca…</span> (archivos) o <span class="ui">Importar biblioteca…</span> (una carpeta entera).</li>
+  </ul>
+  <p>Muestra <code>.opencraftcutter</code>, <code>.studio3</code>, SVG e imágenes, con vista previa de cada uno. Puedes elegir otra carpeta como biblioteca en <a href="#preferencias">Preferencias</a>.</p>
+</section>
+
+<!-- ============================ 14 ENVIAR ============================ -->
+<section class="cap" id="enviar">
+  <p class="kicker">Capítulo 14</p>
+  <h2>Enviar a la CAMEO</h2>
+  <p class="entrada">El espacio Enviar convierte tu diseño en un trabajo de corte: decide qué líneas se cortan, con qué herramienta y con qué ajustes, y lo manda a la máquina.</p>
+
+  <h3 id="conectar">Conectar la máquina</h3>
+  <ol class="pasos">
+    <li>Enciende la CAMEO y activa el Bluetooth del Mac.</li>
+    <li><strong>Cierra Silhouette Studio</strong>: la máquina solo acepta una conexión a la vez.</li>
+    <li>En la tarjeta de la máquina, arriba del panel, pulsa <span class="ui">Conectar</span>. OpenCraftCutter busca por Bluetooth y muestra el nombre (por ejemplo «CAMEO 5-124171B») y su firmware.</li>
+  </ol>
+  <p>La tarjeta indica en todo momento el estado: sin conexión, buscando, conectada y lista, sin material cargado o en movimiento. También detecta la herramienta montada en cada portaherramientas y la marca en verde «(detectada)» en el selector de herramienta.</p>
+
+  <h3 id="modos">Modos de envío</h3>
+  <table class="ancho">
+    <tr><th>Modo</th><th>Cuándo usarlo</th></tr>
+    <tr><td><span class="ui">Guía</span></td><td>Asistente paso a paso: conectarse, elegir material, acción y herramienta, ajustar la cuchilla, colocar el material, cargar el tapete o rollo, resumen y ¡hazlo! Ideal al empezar.</td></tr>
+    <tr><td><span class="ui">Estándar</span></td><td>Un material y una acción por portaherramientas. Con los botones bajo la vista previa decides si cada objeto va al portaherramientas 1 o al 2, si se cortan todas sus líneas o solo el contorno exterior, o si se omite.</td></tr>
+    <tr><td><span class="ui">Cortar por color de línea</span></td><td>Cada color de línea del diseño tiene sus propios ajustes: por ejemplo, rojo = cortar, azul = marcar un pliegue, negro = dibujar con rotulador.</td></tr>
+    <tr><td><span class="ui">Cortar por color de relleno</span></td><td>Igual, pero agrupando por color de relleno.</td></tr>
+  </table>
+  <p>En los modos por color, haz clic en un color para ver sus ajustes; con clic derecho tienes <span class="ui">On/Off</span>, <span class="ui">Activar/Desactivar todo</span>, <span class="ui">Fusionar con el color seleccionado</span>, <span class="ui">Unir todo</span>, <span class="ui">Herramienta 2 todo</span> y <span class="ui">Pausa al terminar este color</span> (la máquina se detiene para que cambies de herramienta o de material).</p>
+
+  <h3 id="materiales">Materiales y ajustes de corte</h3>
+  <p>OpenCraftCutter incluye <strong>81 materiales</strong> con ajustes de corte recomendados para la CAMEO 5: cartulinas, papeles, vinilos, transferencias térmicas, pegatinas, telas, adhesivos, cueros, madera de balsa, goma eva y más. El selector tiene categorías (A medida, Pegatina, Transferencia térmica, Vinilo, Tarjeta, Papel, Tela, Adhesivo y Otro) y una búsqueda que encuentra en todas las categorías a la vez.</p>
+  <table class="ancho">
+    <tr><th>Ajuste</th><th>Qué controla</th></tr>
+    <tr><td><span class="ui">Presión</span> (1–33)</td><td>Fuerza con que la herramienta apoya en el material. Más grueso o duro, más presión.</td></tr>
+    <tr><td><span class="ui">Velocidad</span> (1–30)</td><td>Rapidez del movimiento. Baja la velocidad en materiales gruesos o diseños con mucho detalle.</td></tr>
+    <tr><td><span class="ui">Pasadas</span> (1–10)</td><td>Cuántas veces se repite el corte. Útil en materiales gruesos.</td></tr>
+    <tr><td><span class="ui">Profundidad</span></td><td>Cuánto asoma la cuchilla: niveles 1–10 en la cuchilla automática (la máquina la ajusta sola) y 1–20 en la cuchilla Kraft. En cuchillas manuales, OpenCraftCutter te indica a qué número girar el anillo.</td></tr>
+    <tr><td><span class="ui">Sobrecorte de segmento de línea</span></td><td>Prolonga cada tramo recto en las esquinas para que queden limpias. Activado de serie en madera prensada, papel corrugado, goma eva y papel de portada.</td></tr>
+    <tr><td><span class="ui">Optimización de ruta</span></td><td>Ordena los trazos para recorrer menos distancia sin cortar.</td></tr>
+  </table>
+  <p>Si cambias un ajuste, pulsa <span class="ui">Guardar</span> para conservarlo en el material, <span class="ui">Deshacer</span> para volver al valor anterior, o <span class="ui">Guardar como…</span> para crear tu propio material. Los materiales propios aparecen en la categoría <span class="ui">A medida</span>; <span class="ui">Añadir nuevo tipo de material…</span> crea uno desde cero. <span class="ui">Restaurar materiales predeterminados</span> (en el menú del engranaje) recupera los valores originales sin tocar los tuyos.</p>
+
+  <h3 id="acciones">Acciones y herramientas</h3>
+  <div class="dos">
+    <div>
+      <h4>Acciones</h4>
+      <p>Cortar, Esbozar (dibujar con rotulador), Punteado, Marcar (pliegue), Corte desplegable, Encuadernar, Corte Kraft, Corte giratorio, Perforar y Relieve. <span class="ui">Auto</span> usa la acción del material para la herramienta montada.</p>
+    </div>
+    <div>
+      <h4>Herramientas</h4>
+      <p>Cuchilla automática, de trinquete, de corte profundo, Kraft (2 mm), rotatoria y de perforado; rotulador de esbozo y adaptador de bolígrafo; herramientas de relieve y grabado; lápiz térmico; punzón y tallador de cuero.</p>
+    </div>
+  </div>
+  <p>El portaherramientas 1 admite las cuchillas finas (como la automática); el 2, además, las herramientas gruesas (Kraft, rotatoria, relieve…). OpenCraftCutter solo te ofrece las combinaciones válidas.</p>
+
+  <h3 id="prueba">Corte de prueba</h3>
+  <p><span class="ui">Generar forma de prueba</span> añade un cuadrado de 10 mm con un triángulo dentro; <span class="ui">Enviar prueba</span> corta solo esa forma con los ajustes actuales.</p>
+  <ol class="pasos">
+    <li>Con <span class="ui">Elegir sitio en el tapete</span>, haz clic en un trozo libre del material: la prueba se coloca ahí (un recuadro muestra dónde caerá; <kbd>Esc</kbd> cancela).</li>
+    <li>En los modos por color, <span class="ui">Cortar la prueba como</span> elige con qué fila (y sus ajustes) se corta.</li>
+    <li>Al terminar cada prueba, se apunta en <span class="ui">Intentos de prueba</span> con los valores enviados (profundidad, presión, velocidad y pasadas) y la forma pasa 15 mm a la derecha, para que la siguiente no corte encima.</li>
+    <li>Marca cómo salió cada intento: <span class="ui">Bien</span>, <span class="ui">Solo en partes</span> o <span class="ui">No cortó</span>. En uno bueno, <span class="ui">Guardar como material</span> crea un material propio con esos valores.</li>
+  </ol>
+  <table class="ancho">
+    <tr><th>Resultado</th><th>Qué ajustar</th></tr>
+    <tr><td>El triángulo no se desprende</td><td>Sube una o dos unidades de presión, o un nivel de profundidad.</td></tr>
+    <tr><td>Se desprende pero el soporte queda cortado o marcado</td><td>Baja la presión o la profundidad.</td></tr>
+    <tr><td>Bordes rasgados o esquinas levantadas</td><td>Baja la velocidad y activa el sobrecorte; comprueba que la cuchilla no esté gastada.</td></tr>
+    <tr><td>El material se mueve</td><td>Usa un tapete más adherente y alísalo bien; activa <span class="ui">Ordenar por contornos interiores</span>.</td></tr>
+  </table>
+  <p>Cuando quede bien, borra la forma con <span class="ui">Eliminar forma de prueba</span> antes de enviar el diseño.</p>
+
+  <h3 id="avisos">Avisos antes de enviar</h3>
+  <p>Encima de <span class="ui">ENVIAR</span> aparecen avisos en amarillo. No impiden enviar, pero conviene leerlos:</p>
+  <table class="ancho">
+    <tr><th>Aviso</th><th>Qué hacer</th></tr>
+    <tr><td>Detalles más finos que el mínimo del material</td><td>Las zonas se marcan <strong>en rojo</strong> en la vista previa: se romperían al cortar o al pelar. Mínimos: 0,8 mm papel y cartulina, 1 mm vinil, 1,2 mm vinil textil, 2 mm tela. Engrosa esas partes (Desplazamiento) o agranda el texto.</td></tr>
+    <tr><td>Líneas fuera de las marcas de registro</td><td>Mueve el diseño dentro del marco y fuera de las zonas rayadas.</td></tr>
+    <tr><td>La cuchilla lleva muchos metros</td><td>Ver <a href="#historial">Historial y cuchillas</a>.</td></tr>
+  </table>
+  <p><strong>Vinil textil:</strong> con un material de transferencia de calor, <span class="ui">Reflejar el diseño al cortar</span> se activa solo y la vista previa ya sale en espejo (el vinil textil se corta por el revés). Si lo desmarcas, un aviso te recuerda que quedará al revés en la prenda. Los imprimibles no se reflejan, ni la forma de prueba.</p>
+
+  <h3 id="simular">Tiempo estimado y simulación</h3>
+  <p>Junto a <span class="ui">Trabajos</span> aparece el <strong>tiempo estimado</strong> del corte (aproximado). <span class="ui">Simular corte</span> anima la cuchilla sobre la vista previa en el orden real de envío: lo cortado en negro, los desplazamientos en vacío en gris. Cambia la velocidad con <span class="ui">×1</span>, <span class="ui">×5</span> o <span class="ui">×20</span> y termina con <span class="ui">Parar</span>.</p>
+
+  <h3 id="opciones">Opciones de envío (engranaje)</h3>
+  <ul>
+    <li><span class="ui">Opciones de alimentación</span>: <span class="ui">Regresar al origen</span> (el material queda cargado) o <span class="ui">Hacer avanzar el material</span> (sale por detrás).</li>
+    <li><span class="ui">Orden de los trabajos de corte</span>: <span class="ui">No optimizar</span>, <span class="ui">Maximizar velocidad</span> o <span class="ui">Minimizar movimiento de rodillo</span> (el material va y viene lo menos posible; recomendado).</li>
+    <li><span class="ui">Ordenar por contornos interiores</span>: corta primero las piezas interiores para que el material no se mueva.</li>
+    <li><span class="ui">Orden del punteado</span>: predeterminado, del borde al centro o del centro al borde.</li>
+    <li><span class="ui">Mostrar ajustes de la cuchilla</span> y <span class="ui">Todos los cortadores</span> en la lista de máquinas.</li>
+  </ul>
+
+  <h3 id="cortando">Durante el corte</h3>
+  <p>Al pulsar <span class="ui">ENVIAR</span>, OpenCraftCutter comprueba que la máquina esté lista y con el material cargado, y envía el trabajo. La barra de progreso muestra el avance. Si añadiste pausas, la máquina se detiene y aparece <span class="ui">Continuar</span>; <span class="ui">Cancelar</span> detiene el trabajo en cualquier momento.</p>
+  <div class="aviso"><p>Mantén las manos lejos del carro mientras la máquina se mueve, y no descargues el tapete hasta que termine.</p></div>
+
+  <h3 id="historial">Historial y cuchillas</h3>
+  <p><span class="ui">Historial de cortes y cuchillas</span> (bajo la lista de trabajos) guarda cada envío con su fecha, documento, ajustes, metros y resultado (terminado, cancelado o error), y los metros que lleva cada cuchilla desde que la cambiaste. Al cambiar una cuchilla, pulsa <span class="ui">La he cambiado</span>. En <span class="ui">Avisar a los</span> eliges a cuántos metros te recuerda revisarla (100 m de serie: es orientativo, depende mucho del material).</p>
+</section>
+
+<!-- ============================ 15 VINIL, PEGATINAS Y MÁS ============================ -->
+<section class="cap" id="vinil">
+  <p class="kicker">Capítulo 15</p>
+  <h2>Vinil, pegatinas y más</h2>
+  <p class="entrada">Herramientas para preparar pegatinas y vinil en pocos pasos, y para diseños especiales: texto curvo, fuentes de rotulador, plantillas, códigos QR y diseños más grandes que el tapete.</p>
+
+  <h3 id="pegatinas">Hoja de pegatinas</h3>
+  <p>En el panel <span class="ui">Imprimir y cortar</span>, sección <span class="ui">Hoja de pegatinas</span>:</p>
+  <ol class="pasos">
+    <li>Pon una o varias imágenes (mejor PNG con fondo transparente). Sin selección se usan todas.</li>
+    <li>Elige el <span class="ui">Margen blanco</span> alrededor de cada imagen (2 mm de serie) y <span class="ui">Rellenar la hoja</span> o un número de copias.</li>
+    <li>Pulsa <span class="ui">Crear hoja de pegatinas</span>: cada imagen queda agrupada con su contorno de corte, todo acomodado dentro de las marcas de registro, que se activan solas.</li>
+    <li>Imprime, coloca la hoja en el tapete arriba a la izquierda y envía (ver <a href="#printcut">Imprimir y cortar</a>).</li>
+  </ol>
+
+  <h3 id="acomodar">Acomodar en la página</h3>
+  <p><span class="ui">Objeto → Alinear → Acomodar en la página</span> reparte las piezas seleccionadas por filas, sin solaparse y a 3 mm entre ellas, para gastar menos material. Cada grupo cuenta como una pieza. Si alguna no cabe, se queda donde estaba y te avisa.</p>
+
+  <h3 id="desbarbado">Desbarbado</h3>
+  <p>El panel <span class="ui">Desbarbado</span> añade una <strong>caja</strong> alrededor del diseño y <strong>líneas</strong> por los huecos entre piezas (nunca por encima de una), para pelar el vinil sobrante a trozos sin arrastrar las letras pequeñas.</p>
+  <ol class="pasos">
+    <li>Selecciona el diseño (sin selección se usa todo).</li>
+    <li>Ajusta <span class="ui">Margen de la caja</span>, <span class="ui">Líneas de desbarbado</span> y <span class="ui">Hueco mínimo entre piezas</span>.</li>
+    <li>Pulsa <span class="ui">Añadir desbarbado</span>. La caja y las líneas toman el color del diseño, así que se cortan con sus mismos ajustes.</li>
+  </ol>
+
+  <h3 id="capas">Capas de varios colores</h3>
+  <p>En el panel <span class="ui">Desbarbado</span>, <span class="ui">Añadir marcas de alineación</span> pone dos cruces a los lados del diseño, iguales en cada color. Corta cada color con sus cruces y, al aplicar el vinil, haz coincidir las cruces de una capa con las de la otra. <span class="ui">Quitar desbarbado y marcas</span> borra lo añadido.</p>
+
+  <h3 id="textotrazado">Texto sobre un trazado</h3>
+  <ol class="pasos">
+    <li>Escribe el texto (una sola línea) y dibuja la forma a seguir: un círculo, una línea, una curva…</li>
+    <li>Selecciona los dos y abre el panel <span class="ui">Estilo de texto</span>, sección <span class="ui">Texto sobre trazado</span>.</li>
+    <li>Ajusta <span class="ui">Posición</span> (dónde cae el centro del texto), <span class="ui">Distancia</span> a la línea y <span class="ui">Del otro lado (por dentro)</span>.</li>
+    <li>Pulsa <span class="ui">Colocar sobre el trazado</span>.</li>
+  </ol>
+  <div class="nota"><p>El texto pasa a ser un trazado: corrige el texto antes de colocarlo. <kbd>⌘Z</kbd> lo devuelve editable.</p></div>
+
+  <h3 id="untrazo">Fuente de un trazo</h3>
+  <p>La primera fuente de la lista, <span class="ui">Hershey Sans (un trazo)</span>, dibuja cada letra con una sola línea en vez de su contorno: es la fuente para el <strong>rotulador</strong> (acción Esbozar). Incluye ñ, tildes, ¿ y ¡.</p>
+
+  <h3 id="plantillas">Plantillas</h3>
+  <p><span class="ui">Objeto → Insertar plantilla…</span> crea a la medida que pongas una <span class="ui">Caja abierta</span> (con pestañas para pegar), un <span class="ui">Sobre</span> (das el tamaño de la tarjeta), una <span class="ui">Tarjeta doblada</span> o una <span class="ui">Etiqueta</span> con agujero. El corte va en rojo y los dobleces en azul discontinuo.</p>
+  <div class="truco"><p>En <span class="ui">Enviar → Cortar por color de línea</span>, pon la fila azul en <span class="ui">Marcar</span> o con poca profundidad: así dobla sin cortarse.</p></div>
+
+  <h3 id="qr">Código QR</h3>
+  <p><span class="ui">Objeto → Insertar código QR…</span>: escribe el texto o enlace, elige el tamaño y pulsa <span class="ui">Insertar</span>. Se coloca centrado en la página como una sola forma. Para cortarlo en vinil, mejor de 25 mm o más.</p>
+
+  <h3 id="grandes">Diseños más grandes que el tapete</h3>
+  <p>En el panel <span class="ui">Configuración de página</span>, sección <span class="ui">Diseños grandes</span>:</p>
+  <ol class="pasos">
+    <li>Elige el <span class="ui">Solape</span> entre partes (10 mm de serie) y pulsa <span class="ui">Dividir en partes</span>.</li>
+    <li>Solo se ve, y se envía, la <strong>Parte 1 de N</strong>. Córtala.</li>
+    <li>Cambia el material y pulsa <span class="ui">›</span> para pasar a la siguiente parte.</li>
+    <li>Al aplicar, superpón las partes por la franja de solape.</li>
+  </ol>
+  <p>Las imágenes no se dividen. <kbd>⌘Z</kbd> devuelve el diseño entero.</p>
+</section>
+
+<!-- ============================ 16 PREFERENCIAS ============================ -->
+<section class="cap" id="preferencias">
+  <p class="kicker">Capítulo 16</p>
+  <h2>Preferencias</h2>
+  <p class="entrada"><span class="ui">Editar → Preferencias…</span> <kbd>⌘K</kbd>. Los cambios se guardan automáticamente y se aplican a los documentos nuevos.</p>
+  <table class="ancho">
+    <tr><th>Ajuste</th><th>Qué hace</th></tr>
+    <tr><td><span class="ui">Unidades</span></td><td>Centímetros, milímetros o pulgadas en toda la interfaz.</td></tr>
+    <tr><td><span class="ui">Máquina</span></td><td>Máquina por defecto de los documentos nuevos.</td></tr>
+    <tr><td><span class="ui">Mostrar rejilla</span> y <span class="ui">Espaciado de rejilla</span></td><td>Retícula por defecto.</td></tr>
+    <tr><td><span class="ui">Margen de corte</span></td><td>Distancia entre el borde del material y el área de corte.</td></tr>
+    <tr><td><span class="ui">Grosor del borrador</span></td><td>Ancho de la herramienta Borrador.</td></tr>
+    <tr><td><span class="ui">Biblioteca</span></td><td><span class="ui">Elegir carpeta…</span> para usar otra carpeta como biblioteca.</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 16 ATAJOS ============================ -->
+<section class="cap" id="atajos">
+  <p class="kicker">Capítulo 17</p>
+  <h2>Atajos de teclado</h2>
+  <div class="dos">
+    <div>
+      <h4>Archivo</h4>
+      <table>
+        <tr><td><kbd>⌘N</kbd></td><td>Nuevo</td></tr>
+        <tr><td><kbd>⇧⌘N</kbd></td><td>Nuevo asistente de proyecto</td></tr>
+        <tr><td><kbd>⌘O</kbd></td><td>Abrir</td></tr>
+        <tr><td><kbd>⇧⌘O</kbd></td><td>Combinar</td></tr>
+        <tr><td><kbd>⌘S</kbd> · <kbd>⇧⌘S</kbd></td><td>Guardar · Guardar como</td></tr>
+        <tr><td><kbd>⌃⌥⌘R</kbd></td><td>Guardar en la biblioteca</td></tr>
+        <tr><td><kbd>⇧⌘I</kbd></td><td>Importar SVG</td></tr>
+        <tr><td><kbd>⇧⌘M</kbd></td><td>Importar imagen</td></tr>
+        <tr><td><kbd>⌥⌘E</kbd></td><td>Exportar como SVG</td></tr>
+        <tr><td><kbd>⌘P</kbd></td><td>Imprimir</td></tr>
+        <tr><td><kbd>⌘W</kbd></td><td>Cerrar pestaña</td></tr>
+      </table>
+      <h4>Edición</h4>
+      <table>
+        <tr><td><kbd>⌘Z</kbd> · <kbd>⇧⌘Z</kbd></td><td>Deshacer · Rehacer</td></tr>
+        <tr><td><kbd>⌘X</kbd> <kbd>⌘C</kbd> <kbd>⌘V</kbd></td><td>Cortar, copiar, pegar</td></tr>
+        <tr><td><kbd>⌘F</kbd></td><td>Pegar delante</td></tr>
+        <tr><td><kbd>⌘D</kbd></td><td>Duplicar</td></tr>
+        <tr><td><kbd>⌫</kbd></td><td>Borrar</td></tr>
+        <tr><td><kbd>⌘A</kbd> · <kbd>⇧⌘A</kbd></td><td>Seleccionar · deseleccionar todo</td></tr>
+        <tr><td><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></td><td>Mover 1 mm (10 mm con <kbd>⇧</kbd>)</td></tr>
+        <tr><td><kbd>⌘K</kbd></td><td>Preferencias</td></tr>
+      </table>
+    </div>
+    <div>
+      <h4>Objeto</h4>
+      <table>
+        <tr><td><kbd>⌘G</kbd> · <kbd>⇧⌘G</kbd></td><td>Agrupar · Desagrupar</td></tr>
+        <tr><td><kbd>⌘E</kbd> · <kbd>⇧⌘E</kbd></td><td>Crear · soltar trazado compuesto</td></tr>
+        <tr><td><kbd>⇧⌘W</kbd></td><td>Fusionar</td></tr>
+        <tr><td><kbd>⌘J</kbd></td><td>Simplificar</td></tr>
+        <tr><td><kbd>⇧⌘F</kbd></td><td>Llenar página</td></tr>
+        <tr><td><kbd>⇧⌘]</kbd> · <kbd>⇧⌘[</kbd></td><td>Traer al frente · enviar detrás</td></tr>
+        <tr><td><kbd>⌘]</kbd> · <kbd>⌘[</kbd></td><td>Hacia delante · hacia atrás</td></tr>
+      </table>
+      <h4>Vista</h4>
+      <table>
+        <tr><td><kbd>⌘+</kbd> · <kbd>⌘−</kbd></td><td>Acercar · alejar</td></tr>
+        <tr><td><kbd>⌘0</kbd> · <kbd>⌘1</kbd></td><td>Ajustar a la página</td></tr>
+        <tr><td><kbd>⌘2</kbd></td><td>Zoom a la selección</td></tr>
+        <tr><td><kbd>⌥⌘D</kbd> · <kbd>⌥⌘L</kbd></td><td>Espacio Diseño · Biblioteca</td></tr>
+        <tr><td><kbd>⇧⌘L</kbd></td><td>Mostrar bordes de corte</td></tr>
+        <tr><td><kbd>⇧⌘P</kbd></td><td>Mostrar bordes de impresión</td></tr>
+        <tr><td><kbd>Espacio</kbd></td><td>Desplazar mientras se mantiene</td></tr>
+      </table>
+      <h4>Herramientas</h4>
+      <table>
+        <tr><td><kbd>V</kbd> · <kbd>A</kbd></td><td>Seleccionar · Editar puntos</td></tr>
+        <tr><td><kbd>L</kbd> · <kbd>R</kbd> · <kbd>E</kbd></td><td>Línea · Rectángulo · Elipse</td></tr>
+        <tr><td><kbd>G</kbd> · <kbd>P</kbd> · <kbd>T</kbd></td><td>Polígono · Mano alzada · Texto</td></tr>
+        <tr><td><kbd>H</kbd> · <kbd>Z</kbd></td><td>Desplazar · Zoom de arrastre</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Terminar o cancelar la acción en curso</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 17 PROBLEMAS ============================ -->
+<section class="cap" id="problemas">
+  <p class="kicker">Capítulo 18</p>
+  <h2>Solución de problemas</h2>
+
+  <h4>«No se ha encontrado ninguna máquina»</h4>
+  <ul>
+    <li>Cierra Silhouette Studio y cualquier otro programa que pueda estar conectado a la CAMEO.</li>
+    <li>Comprueba que el Bluetooth esté activo en el Mac y en la máquina, y acerca la máquina.</li>
+    <li>Revisa que OpenCraftCutter tenga permiso en <span class="ui">Ajustes del Sistema → Privacidad y seguridad → Bluetooth</span>.</li>
+    <li>Apaga la máquina, espera unos segundos, vuelve a encenderla y pulsa <span class="ui">Volver a buscar dispositivos</span>.</li>
+  </ul>
+
+  <h4>«Sin material cargado» al enviar</h4>
+  <p>Carga el tapete o el rollo con el botón de carga de la máquina antes de pulsar ENVIAR.</p>
+
+  <h4>No corta del todo o marca el tapete</h4>
+  <p>Haz un <a href="#prueba">corte de prueba</a> y ajusta presión y profundidad de una en una. Revisa que el material elegido coincida con el que tienes y que la cuchilla no esté gastada.</p>
+
+  <h4>Una forma no se corta</h4>
+  <ul>
+    <li>En Enviar, comprueba que no esté marcada como <span class="ui">Omitir</span> y que su color esté en <span class="ui">On</span> en los modos por color.</li>
+    <li>Las imágenes no se cortan: trázalas primero (<a href="#trazar">Trazar</a>).</li>
+    <li>Comprueba que la forma quede dentro de la línea roja del área de corte.</li>
+  </ul>
+
+  <h4>Un texto se ve distinto en otro ordenador</h4>
+  <p>Falta la fuente en ese ordenador. Instálala allí o convierte el texto en trazado antes de compartir el archivo.</p>
+
+  <h4>macOS dice que la app «no se puede abrir»</h4>
+  <p>Ábrela con clic derecho → Abrir la primera vez (ver <a href="#instalar">Instalar OpenCraftCutter</a>).</p>
+
+  <h4>He perdido el trabajo</h4>
+  <p>Mira en <span class="ui">Archivo → Abre un archivo recuperado…</span> (ver <a href="#recuperacion">Copia automática</a>).</p>
+</section>
+
+<!-- ============================ 18 GLOSARIO ============================ -->
+<section class="cap" id="glosario">
+  <p class="kicker">Capítulo 19</p>
+  <h2>Glosario</h2>
+  <table class="ancho">
+    <tr><td><b>Área de corte</b></td><td>Zona que la máquina puede alcanzar, marcada con una línea roja en el lienzo.</td></tr>
+    <tr><td><b>Desplazamiento</b></td><td>Contorno paralelo a una forma, por fuera o por dentro.</td></tr>
+    <tr><td><b>Fusionar</b></td><td>Unir formas que se solapan en una sola silueta.</td></tr>
+    <tr><td><b>Manejador</b></td><td>Punto de control que define la curvatura del tramo junto a un nodo.</td></tr>
+    <tr><td><b>Marcas de registro</b></td><td>Marcas impresas que la máquina lee para alinear el corte con lo impreso.</td></tr>
+    <tr><td><b>Medios</b></td><td>El material que se corta (papel, vinilo…) y su tamaño.</td></tr>
+    <tr><td><b>Nodo</b></td><td>Punto de una forma donde empieza y acaba un tramo.</td></tr>
+    <tr><td><b>Portaherramientas</b></td><td>Cada uno de los dos carros de la CAMEO donde se monta una herramienta.</td></tr>
+    <tr><td><b>Sobrecorte</b></td><td>Prolongación del corte en las esquinas para que queden limpias.</td></tr>
+    <tr><td><b>Tapete</b></td><td>La base adhesiva que sujeta el material mientras se corta.</td></tr>
+    <tr><td><b>Trazado compuesto</b></td><td>Una forma hecha de varios contornos, donde los interiores son agujeros (como la letra «O»).</td></tr>
+    <tr><td><b>Trazar</b></td><td>Convertir una imagen en líneas de corte.</td></tr>
+  </table>
+  <p style="margin-top:10mm;color:var(--muted);font-size:9pt">OpenCraftCutter es un proyecto independiente y no está afiliado a Silhouette America. Silhouette, CAMEO, Portrait, CURIO, PixScan y Silhouette Studio son marcas de sus respectivos propietarios.</p>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+[package]
+name = "oc-svg"
+description = "Importación y exportación de SVG para OpenCraftCutter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+oc-core.workspace = true
+kurbo.workspace = true
+usvg.workspace = true
+svg2pdf = "0.13"
+ttf-parser = "0.25"
+thiserror.workspace = true

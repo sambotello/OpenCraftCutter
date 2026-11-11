@@ -1,0 +1,383 @@
+Hojas de acetato (finas) [Other]
+  One Cut: presión 33 · velocidad 3 · pasadas 2 · aceleración 1 · profundidad 1 · sobrecorte false · optimización true
+  One KraftCut: presión 4 · velocidad 3 · pasadas 3 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Madera de balsa [Other]
+  Two KraftCut: presión 8 · velocidad 3 · pasadas 2 · aceleración 1 · profundidad 11 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Hoja adhesiva metálica cepillada [Sticker]
+  One Cut: presión 25 · velocidad 3 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina, adhesiva [Adhesive]
+  One Cut: presión 29 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina, pizarra [Card]
+  One Cut: presión 29 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina, purpurina [Card]
+  One Cut: presión 33 · velocidad 3 · pasadas 2 · aceleración 3 · profundidad 6 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina, lisa [Card]
+  One Cut: presión 20 · velocidad 4 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina, imprimible y adhesivo [Adhesive]
+  One Cut: presión 29 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina, con relieve - gruesa (80 lb) [Card]
+  One Cut: presión 30 · velocidad 4 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartulina fina [Card]
+  One Cut: presión 15 · velocidad 10 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de copia, medio [Paper]
+  One Cut: presión 15 · velocidad 10 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Madera prensada [Other]
+  One Cut: presión 33 · velocidad 1 · pasadas 2 · aceleración 3 · profundidad 4 · sobrecorte true · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cartón prensado (grueso) [Other]
+  One KraftCut: presión 12 · velocidad 3 · pasadas 1 · aceleración 1 · profundidad 9 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Láminas de corcho [Other]
+  One Cut: presión 20 · velocidad 1 · pasadas 1 · aceleración 3 · profundidad 7 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel corrugado [Paper]
+  One Cut: presión 33 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 8 · sobrecorte true · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Lienzo de algodón, imprimible [Fabric]
+  One Cut: presión 33 · velocidad 3 · pasadas 2 · aceleración 3 · profundidad 5 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Tela de algodón, imprimible [Fabric]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de portada, sólido (105 lb-122 lb) [Card]
+  One Cut: presión 33 · velocidad 1 · pasadas 2 · aceleración 3 · profundidad 7 · sobrecorte true · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Goma Eva [Other]
+  One Cut: presión 4 · velocidad 4 · pasadas 2 · aceleración 3 · profundidad 10 · sobrecorte true · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de crepe [Paper]
+  One KraftCut: presión 12 · velocidad 5 · pasadas 2 · aceleración 1 · profundidad 7 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Adhesivo de doble cara [Adhesive]
+  One Cut: presión 33 · velocidad 3 · pasadas 2 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cinta de embalar, imprimible [Adhesive]
+  One Cut: presión 20 · velocidad 4 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Tela, grueso (lienzo) [Fabric]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 5 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Tela, fino (impresión algodón) [Fabric]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Tejido, lino [Fabric]
+  Two RotaryCut: presión 23 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Tejido, lana [Fabric]
+  Two RotaryCut: presión 20 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de piel sintética [Paper]
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+Fieltro, acrílico [Fabric]
+  Two RotaryCut: presión 22 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Fieltro, poliéster [Fabric]
+  Two RotaryCut: presión 19 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de aluminio, imprimible [Adhesive]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 5 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, tela [HeatTransfer]
+  One Cut: presión 10 · velocidad 3 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, terciopelo [HeatTransfer]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, purpurina [HeatTransfer]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, fosforescente [HeatTransfer]
+  One Cut: presión 10 · velocidad 6 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, iridiscente [HeatTransfer]
+  One Cut: presión 10 · velocidad 6 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, metálico [HeatTransfer]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor – imprimible (oscuro) [HeatTransfer]
+  One Cut: presión 8 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, tela imprimible [HeatTransfer]
+  One Cut: presión 29 · velocidad 5 · pasadas 2 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor – imprimible (claro) [HeatTransfer]
+  One Cut: presión 2 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, reflectante [HeatTransfer]
+  One Cut: presión 10 · velocidad 6 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Transferencia de calor, suave [HeatTransfer]
+  One Cut: presión 4 · velocidad 8 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de transferencia de imagen [Paper]
+  One Cut: presión 30 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Hoja de pegatinas holográficas, patrón de puntos [Sticker]
+  One Cut: presión 33 · velocidad 4 · pasadas 2 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel Kraft, adhesivo [Sticker]
+  One Cut: presión 20 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cuero sintético [Fabric]
+  One Cut: presión 33 · velocidad 3 · pasadas 2 · aceleración 3 · profundidad 6 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cuero, textil [Fabric]
+  Two KraftCut: presión 10 · velocidad 4 · pasadas 3 · aceleración 1 · profundidad 17 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Cuero, ante [Fabric]
+  Two KraftCut: presión 10 · velocidad 5 · pasadas 2 · aceleración 1 · profundidad 20 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel imantado, adhesivo [Adhesive]
+  One Cut: presión 33 · velocidad 1 · pasadas 2 · aceleración 3 · profundidad 6 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel imantado, imprimible [Sticker]
+  One Cut: presión 30 · velocidad 1 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Láminas metálicas, punteado [Other]
+  One Stipple: presión 33 · velocidad 8 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel fotográfico [Paper]
+  One Cut: presión 15 · velocidad 10 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Material de plantilla de pedrería Silhouette [Other]
+  One Cut: presión 33 · velocidad 5 · pasadas 2 · aceleración 3 · profundidad 6 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de marcado y relieve [Paper]
+  One Cut: presión 20 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Hoja de pegatina de rascar [Sticker]
+  One Cut: presión 14 · velocidad 7 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Plástico retráctil [Other]
+  One Cut: presión 33 · velocidad 1 · pasadas 2 · aceleración 3 · profundidad 6 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Material Estampado [Other]
+  One Cut: presión 18 · velocidad 1 · pasadas 1 · aceleración 3 · profundidad 9 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Material de plantilla [Other]
+  One Cut: presión 33 · velocidad 2 · pasadas 1 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de pegatina, claro [Sticker]
+  One Cut: presión 25 · velocidad 4 · pasadas 2 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel adhesivo, brillantina [Sticker]
+  One Cut: presión 25 · velocidad 2 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de pegatina, brilla en la oscuridad [Sticker]
+  One Cut: presión 33 · velocidad 4 · pasadas 2 · aceleración 3 · profundidad 3 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Hoja de pegatinas holográficas [Sticker]
+  One Cut: presión 33 · velocidad 4 · pasadas 2 · aceleración 1 · profundidad 5 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de pegatina, iridiscente [Sticker]
+  One Cut: presión 29 · velocidad 4 · pasadas 2 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de pegatina, blanco [Sticker]
+  One Cut: presión 14 · velocidad 8 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de tatuaje temporal, metálico [Paper]
+  One Cut: presión 25 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel de tatuajes temporales, imprimible [Paper]
+  One Cut: presión 25 · velocidad 3 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 2 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, fibra de carbono [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, esmerilado [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, brillante [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, brillo [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, brilla en la oscuridad [Vinyl]
+  One Cut: presión 10 · velocidad 7 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, mate [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, metálico [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, imprimible [Vinyl]
+  One Cut: presión 20 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, reflectante [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, Silhouette Oracal 651 [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, texturado traslúcido [Vinyl]
+  One Cut: presión 25 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 4 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, Pizarra blanca [Vinyl]
+  One Cut: presión 33 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Vinilo, madera [Vinyl]
+  One Cut: presión 10 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 1 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel Washi [Adhesive]
+  One Cut: presión 17 · velocidad 7 · pasadas 1 · aceleración 3 · profundidad 1 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Adherente a ventana, imprimible [Adhesive]
+  One Cut: presión 14 · velocidad 8 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+Papel madera [Adhesive]
+  One Cut: presión 32 · velocidad 4 · pasadas 1 · aceleración 3 · profundidad 6 · sobrecorte false · optimización false
+  One Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false
+  One Stipple: presión 33 · velocidad 5 · pasadas 1 · aceleración 1 · profundidad 3 · sobrecorte false · optimización false
+  Two Sketch: presión 7 · velocidad 5 · pasadas 1 · aceleración 3 · profundidad 2 · sobrecorte false · optimización false

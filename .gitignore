@@ -1,0 +1,9 @@
+/target
+*.log
+.DS_Store
+/dist
+
+# Restos de las pruebas de capturas (egui_kittest)
+*.new.png
+*.diff.png
+*.old.png

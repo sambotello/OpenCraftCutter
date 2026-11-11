@@ -1,0 +1,19 @@
+[package]
+name = "oc-trace"
+description = "Trazado de imágenes de mapa de bits a trazados de corte para OpenCraftCutter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+oc-core.workspace = true
+oc-svg.workspace = true
+kurbo.workspace = true
+visioncortex = "0.8"
+vtracer.workspace = true
+image.workspace = true
+thiserror.workspace = true
+kamadak-exif = "0.6"
+serde.workspace = true
