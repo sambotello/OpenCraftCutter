@@ -1,0 +1,32 @@
+name: Proponer una mejora
+description: Una función nueva o un cambio en algo que ya existe
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cuéntanos qué te gustaría poder hacer. No hace falta proponer cómo programarlo.
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué quieres hacer y por qué?
+      description: El problema o la situación, antes que la solución.
+      placeholder: Corto muchas pegatinas iguales y tengo que colocarlas una a una…
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: ¿Cómo te imaginas que funcionaría?
+      placeholder: Un botón en el panel Replicar que llene la hoja dejando 3 mm entre copias.
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: ¿Cómo lo haces ahora?
+      description: Trucos o programas que usas hoy para conseguirlo, si los hay.
+  - type: textarea
+    id: adjuntos
+    attributes:
+      label: Imágenes o ejemplos
+      description: Bocetos, capturas o fotos del resultado que buscas.

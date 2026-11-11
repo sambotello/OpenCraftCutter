@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Guía de uso
+    url: https://github.com/sambotello/OpenCraftCutter/blob/main/docs/guia/OpenCraftCutter-Guia.pdf
+    about: Antes de abrir un issue, mira si la guía responde tu duda.
