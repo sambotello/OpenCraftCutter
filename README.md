@@ -81,6 +81,15 @@ cargo build --release                         # binario optimizado
 UNIVERSAL=1 ./scripts/build-dmg.sh            # también Intel (tarda el doble)
 ```
 
+**Publicar una versión** (desde `main` al día; `main` solo acepta cambios por PR):
+
+```bash
+scripts/release.sh patch      # 0.3.0 → 0.3.1 (minor → 0.4.0, major → 1.0.0)
+scripts/release.sh publicar   # reintenta solo el DMG y la release si falló tras fusionar
+```
+
+Crea la rama `version-X.Y.Z`, sube la versión, pasa `scripts/check.sh`, abre el PR y lo fusiona (bypass de admin), compila el DMG desde `main` y crea la release `vX.Y.Z` en GitHub con el DMG y notas generadas a partir de los PRs. Con `NOTES=archivo.md` se añade un texto propio al principio de las notas.
+
 Sin un certificado «Developer ID» el DMG va firmado *ad hoc*: la primera vez hay que abrir la app con clic derecho › Abrir. Con `SIGN_ID` y `NOTARY_PROFILE` se firma y se notariza para abrirse sin avisos en cualquier Mac.
 
 Demos de depuración (solo en builds de desarrollo), con la variable `OPENCRAFTCUTTER_DEBUG_DEMO`:
