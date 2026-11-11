@@ -1,0 +1,101 @@
+name: Informar de un fallo
+description: Algo no funciona como debería (diseño, archivos, envío a la máquina…)
+title: "[Fallo] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Antes de enviar, busca si ya existe un issue parecido.
+        Cuanta más información, antes se podrá reproducir y arreglar.
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: ¿Qué pasa?
+      description: Describe el fallo. Si hay un mensaje de error, cópialo tal cual.
+      placeholder: Al pulsar «Enviar», la máquina corta solo la mitad del diseño…
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: ¿Qué esperabas que pasara?
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducirlo
+      placeholder: |
+        1. Abrir un documento nuevo
+        2. Dibujar un rectángulo de 5 × 5 cm
+        3. Ir a Enviar y elegir «Vinilo»
+        4. …
+    validations:
+      required: true
+  - type: dropdown
+    id: parte
+    attributes:
+      label: ¿En qué parte del programa?
+      options:
+        - Diseño (lienzo, herramientas, paneles)
+        - Biblioteca
+        - Enviar / corte en la máquina
+        - Imprimir y cortar (marcas de registro)
+        - Abrir, importar o exportar archivos (SVG, imágenes, .studio3)
+        - Trazar imágenes
+        - Otra
+    validations:
+      required: true
+  - type: dropdown
+    id: maquina
+    attributes:
+      label: Máquina
+      description: Si el fallo no tiene que ver con cortar, elige «No aplica».
+      options:
+        - No aplica
+        - CAMEO 5
+        - CAMEO 5 Plus
+        - CAMEO 4 / 4 Plus / 4 Pro
+        - CAMEO Pro / Pro Mark 2
+        - CAMEO 3 o anterior
+        - Portrait (cualquier versión)
+        - CURIO (cualquier versión)
+        - Otra
+    validations:
+      required: true
+  - type: input
+    id: material
+    attributes:
+      label: Material y herramienta
+      description: Solo si el fallo es al cortar.
+      placeholder: Vinilo mate con cuchilla automática, tapete estándar
+  - type: input
+    id: version
+    attributes:
+      label: Versión de OpenCraftCutter
+      description: Está en el nombre del DMG (OpenCraftCutter-0.3.0.dmg) o en Finder › clic derecho en la app › Obtener información.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: Versión de macOS y Mac
+      placeholder: macOS 26.1, MacBook Pro M1
+    validations:
+      required: true
+  - type: textarea
+    id: adjuntos
+    attributes:
+      label: Capturas, vídeo o archivo de ejemplo
+      description: |
+        Arrastra aquí capturas o el archivo que da problemas (.opencraftcutter, .svg…).
+        Si es un .studio3 o cualquier otro archivo, compártelo solo si no te importa que sea público.
+  - type: checkboxes
+    id: comprobaciones
+    attributes:
+      label: Comprobaciones
+      options:
+        - label: He buscado y no hay un issue abierto sobre lo mismo.
+          required: true
