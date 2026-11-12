@@ -12,8 +12,9 @@
 # Si algo falla después de fusionar (por ejemplo, al compilar), la versión ya está en main:
 # arregla el problema y ejecuta `scripts/release.sh publicar`, que solo hace el paso 4.
 #
-# Notas de la release: las genera GitHub con los PRs fusionados desde la versión anterior, tras
-# las instrucciones de instalación. Con NOTES=archivo.md se añade tu texto al principio.
+# Notas de la release: instrucciones de instalación y la lista de PRs fusionados desde la versión
+# anterior, que genera GitHub (agrupada según .github/release.yml) y el script traduce.
+# Con NOTES=archivo.md se añade tu texto al principio.
 # SIGN_ID, NOTARY_PROFILE y UNIVERSAL se pasan tal cual a build-dmg.sh.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -77,7 +78,9 @@ if [ "$MODE" != publicar ]; then
   git push -q -u origin "$BRANCH"
 
   echo "==> PR y fusión"
-  PR_URL=$(gh pr create --base main --head "$BRANCH" --title "Versión $NEW" \
+  # Etiqueta «version»: .github/release.yml excluye estos PRs de las notas de la release.
+  gh label create version --color ededed --description "PR de cambio de versión (scripts/release.sh)" --force >/dev/null
+  PR_URL=$(gh pr create --base main --head "$BRANCH" --title "Versión $NEW" --label version \
     --body "Sube la versión de $OLD a $NEW. PR creado por \`scripts/release.sh\`.")
   echo "    $PR_URL"
   gh pr merge "$PR_URL" --squash --admin --delete-branch
@@ -125,10 +128,21 @@ trap 'rm -f "$NOTES_FILE"' EXIT
   echo
 } >"$NOTES_FILE"
 
+# Lista de PRs generada por GitHub (agrupada según .github/release.yml), con los títulos fijos
+# que GitHub pone en inglés traducidos.
+GEN=(-f tag_name="$TAG" -f target_commitish="$(git rev-parse HEAD)")
+[ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$TAG" ] && GEN+=(-f previous_tag_name="$PREV_TAG")
+gh api "repos/$REPO/releases/generate-notes" "${GEN[@]}" -q .body |
+  sed -e '/^<!-- Release notes generated/d' \
+    -e "s/^## What's Changed/## Cambios/" \
+    -e 's/^## New Contributors/## Nuevas personas que contribuyen/' \
+    -e 's/^\*\*Full Changelog\*\*:/**Todos los cambios:**/' \
+    -e 's/ by @\([^ ]*\) in / de @\1 en /' \
+    -e 's/ made their first contribution in / contribuyó por primera vez en /' >>"$NOTES_FILE"
+
 echo "==> Release $TAG"
-ARGS=(--target "$(git rev-parse HEAD)" --title "$NAME $VERSION" --notes-file "$NOTES_FILE" --generate-notes)
-[ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$TAG" ] && ARGS+=(--notes-start-tag "$PREV_TAG")
-gh release create "$TAG" "$DMG" "${ARGS[@]}"
+gh release create "$TAG" "$DMG" --target "$(git rev-parse HEAD)" --title "$NAME $VERSION" \
+  --notes-file "$NOTES_FILE"
 git fetch -q --tags origin
 trap - ERR
 echo "Listo: https://github.com/$REPO/releases/tag/$TAG"

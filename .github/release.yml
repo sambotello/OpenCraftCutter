@@ -1,0 +1,15 @@
+# Notas generadas por GitHub al crear una release (scripts/release.sh usa --generate-notes).
+changelog:
+  exclude:
+    labels:
+      - version   # PRs «Versión X.Y.Z» que abre scripts/release.sh
+  categories:
+    - title: Novedades
+      labels:
+        - enhancement
+    - title: Correcciones
+      labels:
+        - bug
+    - title: Otros cambios
+      labels:
+        - "*"
