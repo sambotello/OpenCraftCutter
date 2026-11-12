@@ -2967,7 +2967,7 @@ dependencies = [
 
 [[package]]
 name = "oc-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.22.1",
  "i_overlay",
@@ -2980,7 +2980,7 @@ dependencies = [
 
 [[package]]
 name = "oc-cutter"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "btleplug",
  "futures",
@@ -2994,7 +2994,7 @@ dependencies = [
 
 [[package]]
 name = "oc-studio3"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "image 0.25.10",
  "kurbo 0.13.1",
@@ -3005,7 +3005,7 @@ dependencies = [
 
 [[package]]
 name = "oc-svg"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "kurbo 0.13.1",
  "oc-core",
@@ -3017,7 +3017,7 @@ dependencies = [
 
 [[package]]
 name = "oc-trace"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "image 0.25.10",
  "kamadak-exif",
@@ -3054,7 +3054,7 @@ dependencies = [
 
 [[package]]
 name = "opencraftcutter"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "chrono",
