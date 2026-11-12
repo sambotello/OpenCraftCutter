@@ -77,7 +77,9 @@ if [ "$MODE" != publicar ]; then
   git push -q -u origin "$BRANCH"
 
   echo "==> PR y fusión"
-  PR_URL=$(gh pr create --base main --head "$BRANCH" --title "Versión $NEW" \
+  # Etiqueta «version»: .github/release.yml excluye estos PRs de las notas de la release.
+  gh label create version --color ededed --description "PR de cambio de versión (scripts/release.sh)" --force >/dev/null
+  PR_URL=$(gh pr create --base main --head "$BRANCH" --title "Versión $NEW" --label version \
     --body "Sube la versión de $OLD a $NEW. PR creado por \`scripts/release.sh\`.")
   echo "    $PR_URL"
   gh pr merge "$PR_URL" --squash --admin --delete-branch
