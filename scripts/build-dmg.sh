@@ -64,6 +64,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.graphics-design</string>
   <key>NSHighResolutionCapable</key><true/>
+  <!-- Sin esta clave macOS cierra la app al primer uso de Bluetooth (la app empaquetada responde
+       por sí misma ante TCC; lanzada desde la terminal hereda el permiso de la terminal). -->
+  <key>NSBluetoothAlwaysUsageDescription</key><string>$NAME usa Bluetooth para conectarse a la cortadora y enviarle los cortes.</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
