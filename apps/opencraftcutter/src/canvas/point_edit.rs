@@ -182,6 +182,30 @@ impl OpenCraftCutterApp {
         });
     }
 
+    /// Descarta de la selección de nodos lo que ya no existe en el documento (tras deshacer o
+    /// rehacer puede haber menos nodos, o no estar la forma en edición).
+    pub fn fix_point_selection(&mut self) {
+        let Some(pe) = self.canvas.point_edit else {
+            self.canvas.point_multi.clear();
+            return;
+        };
+        let Some(paths) = self.doc.shape(pe.shape).map(|s| s.world_node_paths()) else {
+            self.canvas.point_edit = None;
+            self.canvas.point_multi.clear();
+            return;
+        };
+        let exists = |(si, ni): (usize, usize)| paths.get(si).is_some_and(|p| ni < p.nodes.len());
+        self.canvas.point_multi.retain(|n| exists(*n));
+        let selected = pe
+            .selected
+            .filter(|n| exists(*n))
+            .or_else(|| self.canvas.point_multi.iter().next().copied());
+        self.canvas.point_edit = Some(PointEdit {
+            shape: pe.shape,
+            selected,
+        });
+    }
+
     /// Nodos seleccionados (el principal incluido), sin repetir.
     pub fn selected_nodes(&self) -> Vec<(usize, usize)> {
         let mut v: std::collections::BTreeSet<(usize, usize)> = self.canvas.point_multi.clone();

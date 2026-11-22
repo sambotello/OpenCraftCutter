@@ -472,6 +472,120 @@ fn edit_points_delete_and_join() {
     assert!(np.closed && np.nodes.len() == 3, "unir lo vuelve a cerrar");
 }
 
+/// App en Editar puntos sobre un cuadrado de (40, 40) a (80, 80) convertido en trazado.
+fn edit_square() -> egui_kittest::Harness<'static, crate::app::OpenCraftCutterApp> {
+    let mut h = app_harness();
+    {
+        let a = h.state_mut();
+        let mut s = rect(40.0, RED);
+        s.rect = Rect::new(40.0, 40.0, 80.0, 80.0);
+        let id = a.doc.add_shape(s);
+        a.doc.selected = vec![id];
+        a.object_run(Cmd::ToPath);
+        a.tool = crate::app::Tool::EditPoints;
+    }
+    h.run_steps(2);
+    let id = h.state().doc.shapes[0].id;
+    crate::canvas::point_edit::begin(h.state_mut(), id);
+    h.run_steps(1);
+    h
+}
+
+/// Anclas del primer trazado de la primera forma.
+fn anchors(a: &crate::app::OpenCraftCutterApp) -> Vec<kurbo::Point> {
+    a.doc.shapes[0].world_node_paths()[0]
+        .nodes
+        .iter()
+        .map(|n| n.p)
+        .collect()
+}
+
+#[test]
+fn edit_points_undo_drops_nodes_that_no_longer_exist() {
+    use egui::{Key, Modifiers};
+    // Un nodo insertado al final queda seleccionado; al deshacer ya no existe y el panel no
+    // debe buscarlo (antes cerraba la app).
+    let mut h = edit_square();
+    h.state_mut().point_insert(0, 3, 0.5);
+    h.run_steps(2);
+    assert_eq!(h.state().selected_nodes(), vec![(0, 4)]);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run_steps(3);
+    assert!(h.state().selected_nodes().is_empty());
+    assert_eq!(anchors(h.state()).len(), 4);
+    // Al rehacer y volver a deshacer tampoco queda seleccionado un nodo que no existe.
+    for mods in [Modifiers::COMMAND | Modifiers::SHIFT, Modifiers::COMMAND] {
+        h.key_press_modifiers(mods, Key::Z);
+        h.run_steps(3);
+    }
+    let n = anchors(h.state()).len();
+    assert!(h.state().selected_nodes().iter().all(|(_, ni)| *ni < n));
+}
+
+/// Línea de dos nodos de `a` a `b` (mm), con 1 pt de grosor.
+fn line(a: (f64, f64), b: (f64, f64)) -> Shape {
+    let mut s = rect(0.0, RED);
+    s.set_world_node_paths(&[oc_core::nodes::NodePath::from_points(
+        &[kurbo::Point::new(a.0, a.1), kurbo::Point::new(b.0, b.1)],
+        false,
+    )]);
+    s.stroke.width_pt = 1.0;
+    s
+}
+
+#[test]
+fn selecting_a_flat_line_does_not_resize_it() {
+    // Una línea horizontal mide 0 de alto (y una vertical, 0 de ancho). Los campos de tamaño
+    // de la barra superior no deben «corregir» ese 0: antes la reescalaban en cada fotograma
+    // hasta desbordar las coordenadas y cerrar la app.
+    // La tercera es casi vertical (0,2 mm de ancho), como las de un SVG importado.
+    for (a, b) in [
+        ((60.0, 70.0), (160.0, 70.0)),
+        ((60.0, 30.0), (60.0, 250.0)),
+        ((60.2, 30.0), (60.0, 250.0)),
+    ] {
+        for panel in [None, Some(crate::app::Panel::Transform)] {
+            let mut h = app_harness();
+            let id = h.state_mut().doc.add_shape(line(a, b));
+            h.state_mut().panel = panel;
+            h.run_steps(2);
+            // Con zoom, el grosor se dibuja como contorno (el cálculo que fallaba).
+            let mid = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+            let c = h
+                .state()
+                .canvas
+                .viewport
+                .to_screen(kurbo::Point::new(mid.0, mid.1));
+            h.state_mut().canvas.viewport.zoom_at(4.0, c);
+            h.run_steps(2);
+            let before = h.state().doc.shapes[0].rect;
+            click_mm(&mut h, mid);
+            h.run_steps(5);
+            assert_eq!(h.state().doc.selected, vec![id]);
+            assert_eq!(h.state().doc.shapes[0].rect, before, "panel {panel:?}");
+            assert!(
+                !h.state().history.can_undo(),
+                "seleccionar no toca el historial"
+            );
+            // Moverla la desplaza sin deformarla, y un solo deshacer la devuelve a su sitio.
+            drag_mm(
+                &mut h,
+                mid,
+                (mid.0 + 12.0, mid.1 + 9.0),
+                egui::Modifiers::NONE,
+            );
+            h.run_steps(5);
+            let moved = h.state().doc.shapes[0].rect;
+            assert!((moved.width() - before.width()).abs() < 1e-6, "{moved:?}");
+            assert!((moved.height() - before.height()).abs() < 1e-6, "{moved:?}");
+            assert!((moved.x0 - before.x0 - 12.0).abs() < 1.0, "{moved:?}");
+            h.state_mut().undo();
+            assert_eq!(h.state().doc.shapes[0].rect, before);
+            assert!(!h.state().history.can_undo(), "mover es una sola entrada");
+        }
+    }
+}
+
 // ---------------------------------------------------------------- Paneles (clics simulados)
 
 use egui_kittest::kittest::Queryable;

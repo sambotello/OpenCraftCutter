@@ -267,15 +267,18 @@ fn selection_tools(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
         .unwrap_or((true, Anchor::TopLeft));
     let field = |ui: &mut egui::Ui, label: &str, mm: f64, min: f64| -> Option<f64> {
         ui.label(RichText::new(label).color(theme::CHROME_300));
-        let mut v = unit.from_mm(mm);
+        let shown = unit.from_mm(mm);
+        let mut v = shown;
+        // El mínimo nunca queda por encima del valor actual: si no, el propio campo lo
+        // «corrige» sin que nadie lo toque (una línea horizontal mide 0 de alto).
         let r = ui.add_sized(
             [62.0, 20.0],
             egui::DragValue::new(&mut v)
                 .speed(unit.step())
-                .range(unit.from_mm(min)..=f64::MAX)
+                .range(unit.from_mm(min).min(shown)..=f64::MAX)
                 .fixed_decimals(unit.decimals() + 1),
         );
-        r.changed().then(|| unit.to_mm(v))
+        (r.changed() && v != shown).then(|| unit.to_mm(v))
     };
     let apply = |app: &mut OpenCraftCutterApp, out: Vec<oc_core::Shape>| {
         app.commit();
@@ -286,9 +289,9 @@ fn selection_tools(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
         }
     };
     ui.separator();
-    // Tamaño (an × al) con candado de proporción; fijo el punto de referencia.
-    let w = field(ui, "An", b.width(), 0.01);
-    let h = field(ui, "Al", b.height(), 0.01);
+    // Tamaño (W × H) con candado de proporción; fijo el punto de referencia.
+    let w = field(ui, "W", b.width(), 0.01);
+    let h = field(ui, "H", b.height(), 0.01);
     ui.label(RichText::new(unit.label()).color(theme::CHROME_300));
     let lock_icon = if lock {
         mi::ICON_LOCK
@@ -302,13 +305,13 @@ fn selection_tools(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
     {
         lock = !lock;
     }
-    if w.is_some() || h.is_some() {
-        let (mut kx, mut ky) = (
-            w.map_or(1.0, |v| v / b.width().max(1e-9)),
-            h.map_or(1.0, |v| v / b.height().max(1e-9)),
-        );
+    // Una medida que vale 0 (el alto de una línea horizontal) no se puede escalar: se ignora.
+    let factor = |new: Option<f64>, old: f64| new.filter(|_| old > 1e-9).map(|v| v / old);
+    let (fx, fy) = (factor(w, b.width()), factor(h, b.height()));
+    if fx.is_some() || fy.is_some() {
+        let (mut kx, mut ky) = (fx.unwrap_or(1.0), fy.unwrap_or(1.0));
         if lock {
-            let k = if w.is_some() { kx } else { ky };
+            let k = fx.or(fy).unwrap_or(1.0);
             kx = k;
             ky = k;
         }

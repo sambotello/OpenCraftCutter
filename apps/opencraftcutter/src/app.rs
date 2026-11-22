@@ -652,12 +652,16 @@ impl OpenCraftCutterApp {
     pub fn undo(&mut self) {
         if self.history.undo(&mut self.doc) {
             self.dirty = true;
+            // La selección de nodos puede apuntar a nodos que ya no existen.
+            self.fix_point_selection();
         }
     }
 
     pub fn redo(&mut self) {
         if self.history.redo(&mut self.doc) {
             self.dirty = true;
+            // La selección de nodos puede apuntar a nodos que ya no existen.
+            self.fix_point_selection();
         }
     }
 

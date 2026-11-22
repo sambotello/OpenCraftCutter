@@ -67,6 +67,7 @@ pub fn state(app: &OpenCraftCutterApp, a: Action) -> (bool, bool) {
     let node = sel.and_then(|(si, ni)| {
         crate::canvas::point_edit::edited_paths(app)
             .and_then(|(_, p)| p.get(si).map(|np| (np.clone(), ni)))
+            .filter(|(np, ni)| *ni < np.nodes.len())
     });
     let has_seg = node
         .as_ref()
