@@ -2329,6 +2329,260 @@ fn object_menu_joins_the_selected_lines() {
     assert_eq!(a.doc.shapes.len(), 3);
 }
 
+// ---------------------------------------------------------------- Menús contextuales
+
+type AppHarness = egui_kittest::Harness<'static, crate::app::OpenCraftCutterApp>;
+
+/// Clic derecho en un punto del documento (mm).
+fn right_click_mm(h: &mut AppHarness, p: (f64, f64)) {
+    let pos = h
+        .state()
+        .canvas
+        .viewport
+        .to_screen(kurbo::Point::new(p.0, p.1));
+    h.hover_at(pos);
+    h.step();
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        h.step();
+    }
+    h.run_steps(3);
+}
+
+/// ¿Hay ahora mismo un control con ese texto?
+fn shows(h: &AppHarness, label: &str) -> bool {
+    use egui_kittest::kittest::NodeT;
+    // El nombre accesible de una entrada de menú lleva detrás su atajo («Duplicar ⌘D»).
+    h.query_all_by_label_contains(label).any(|n| {
+        let node = n.accesskit_node();
+        let text = node.label().unwrap_or_default();
+        text.trim() == label || text.starts_with(&format!("{label} "))
+    })
+}
+
+/// Dos rectángulos de 30 × 30 mm en (40, 40) y (120, 40).
+fn two_rects() -> AppHarness {
+    let mut h = app_harness();
+    for (x, color) in [(40.0, RED), (120.0, BLUE)] {
+        let mut s = rect(x, color);
+        s.rect = Rect::new(x, 40.0, x + 30.0, 70.0);
+        h.state_mut().doc.add_shape(s);
+    }
+    h.state_mut().panel = None;
+    h.run_steps(3);
+    h
+}
+
+#[test]
+fn context_menu_on_a_shape_selects_it_and_acts_on_it() {
+    let mut h = two_rects();
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    right_click_mm(&mut h, (55.0, 40.0));
+    assert_eq!(
+        h.state().doc.selected,
+        vec![ids[0]],
+        "el clic derecho selecciona"
+    );
+    // Solo lo que aplica a una forma suelta.
+    assert!(shows(&h, "Duplicar") && shows(&h, "Editar puntos") && shows(&h, "Bloquear"));
+    assert!(!shows(&h, "Agrupar") && !shows(&h, "Unir trazados") && !shows(&h, "Desbloquear"));
+    click(&mut h, "Duplicar");
+    assert_eq!(h.state().doc.shapes.len(), 3);
+    assert!(!shows(&h, "Duplicar"), "el menú se cierra al elegir");
+    // Sobre una forma de una selección múltiple, la selección se conserva.
+    h.state_mut().doc.selected = ids.clone();
+    h.run_steps(2);
+    right_click_mm(&mut h, (135.0, 40.0));
+    assert_eq!(h.state().doc.selected, ids);
+    assert!(shows(&h, "Agrupar") && shows(&h, "Crear trazado compuesto"));
+    click(&mut h, "Agrupar");
+    let g = h.state().doc.shape(ids[0]).unwrap().group;
+    assert!(g.is_some() && h.state().doc.shape(ids[1]).unwrap().group == g);
+    // Agrupadas: ahora se ofrece desagrupar y no agrupar.
+    right_click_mm(&mut h, (135.0, 40.0));
+    assert!(shows(&h, "Desagrupar"));
+}
+
+#[test]
+fn context_menu_on_empty_canvas() {
+    let mut h = two_rects();
+    let first = h.state().doc.shapes[0].id;
+    h.state_mut().doc.selected = vec![first];
+    h.run_steps(2);
+    right_click_mm(&mut h, (100.0, 150.0));
+    assert!(
+        h.state().doc.selected.is_empty(),
+        "en vacío se deselecciona"
+    );
+    assert!(shows(&h, "Seleccionar todo") && shows(&h, "Ajustar a la página"));
+    assert!(
+        !shows(&h, "Pegar aquí"),
+        "sin nada copiado no se ofrece pegar"
+    );
+    assert!(!shows(&h, "Duplicar") && !shows(&h, "Desbloquear todo"));
+    click(&mut h, "Seleccionar todo");
+    assert_eq!(h.state().doc.selected.len(), 2);
+    // Con algo copiado, «Pegar aquí» lo centra bajo el puntero.
+    let ctx = h.ctx.clone();
+    h.state_mut().doc.selected = vec![first];
+    h.state_mut().copy_selection(&ctx);
+    right_click_mm(&mut h, (100.0, 150.0));
+    click(&mut h, "Pegar aquí");
+    let a = h.state();
+    assert_eq!(a.doc.shapes.len(), 3);
+    let c = a.doc.selected_shapes()[0].rect.center();
+    assert!(
+        (c.x - 100.0).abs() < 1.0 && (c.y - 150.0).abs() < 1.0,
+        "{c:?}"
+    );
+    // Una forma bloqueada: el menú en vacío ofrece desbloquear todo.
+    h.state_mut().doc.shapes[0].locked = true;
+    right_click_mm(&mut h, (100.0, 220.0));
+    click(&mut h, "Desbloquear todo");
+    assert!(h.state().doc.shapes.iter().all(|s| !s.locked));
+}
+
+#[test]
+fn context_menu_joins_two_lines() {
+    let mut h = app_harness();
+    h.state_mut()
+        .doc
+        .add_shape(line((20.0, 20.0), (60.0, 40.0)));
+    h.state_mut()
+        .doc
+        .add_shape(line((60.0, 40.0), (90.0, 20.0)));
+    select_all(h.state_mut());
+    h.state_mut().panel = None;
+    h.run_steps(3);
+    right_click_mm(&mut h, (40.0, 30.0));
+    click(&mut h, "Unir trazados");
+    assert_eq!(h.state().doc.shapes.len(), 1);
+    assert_eq!(h.state().doc.shapes[0].world_node_paths()[0].nodes.len(), 3);
+}
+
+#[test]
+fn context_menu_in_edit_points() {
+    let mut h = edit_square();
+    h.state_mut().panel = None;
+    h.run_steps(2);
+    // Sobre un nodo: lo selecciona y ofrece sus acciones.
+    right_click_mm(&mut h, (80.0, 80.0));
+    let n = node_at(h.state(), 80.0, 80.0);
+    assert_eq!(h.state().selected_nodes(), vec![(0, n)]);
+    assert!(shows(&h, "Borrar punto") && shows(&h, "Suavizar") && shows(&h, "✔ Vértice"));
+    assert!(
+        !shows(&h, "Unir trazados"),
+        "en un trazado cerrado no hay nada que unir"
+    );
+    assert!(
+        !shows(&h, "Alinear puntos"),
+        "con un solo nodo no se alinea"
+    );
+    click(&mut h, "Borrar punto");
+    assert_eq!(anchors(h.state()).len(), 3);
+    h.state_mut().undo();
+    h.run_steps(2);
+    // Sobre un tramo: añadir un punto justo ahí, sin mover nada.
+    right_click_mm(&mut h, (40.0, 55.0));
+    assert!(shows(&h, "Añadir punto aquí") && shows(&h, "Convertir en curva"));
+    assert!(!shows(&h, "Convertir en recta"));
+    click(&mut h, "Añadir punto aquí");
+    let p = anchors(h.state());
+    assert_eq!(p.len(), 5);
+    assert!(
+        p.iter().any(|q| q.x == 40.0 && (q.y - 55.0).abs() < 0.5),
+        "{p:?}"
+    );
+    // Con varios nodos: alinear desde el menú.
+    h.state_mut().point_select_all();
+    h.run_steps(2);
+    let k = node_at(h.state(), 80.0, 40.0);
+    right_click_mm(&mut h, (80.0, 40.0));
+    assert_eq!(
+        h.state().selected_nodes().len(),
+        5,
+        "conserva la selección múltiple"
+    );
+    assert!(shows(&h, "Alinear puntos"));
+    let _ = k;
+    // Esc cierra el menú sin soltar los nodos ni salir de la edición.
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    assert!(!shows(&h, "Alinear puntos"));
+    assert_eq!(h.state().selected_nodes().len(), 5);
+    assert!(h.state().canvas.point_edit.is_some());
+    // En vacío: salir de la edición. (El primer clic fuera cierra el menú que estaba abierto.)
+    right_click_mm(&mut h, (150.0, 200.0));
+    if !shows(&h, "Salir de Editar puntos") {
+        right_click_mm(&mut h, (150.0, 200.0));
+    }
+    click(&mut h, "Salir de Editar puntos");
+    h.run_steps(2);
+    assert_eq!(h.state().tool, crate::app::Tool::Select);
+    assert!(h.state().canvas.point_edit.is_none());
+}
+
+#[test]
+fn context_menu_while_drawing_a_polygon() {
+    let mut h = app_harness();
+    h.state_mut().tool = crate::app::Tool::Polygon;
+    h.state_mut().canvas.polygon = Some(vec![
+        kurbo::Point::new(20.0, 20.0),
+        kurbo::Point::new(60.0, 20.0),
+        kurbo::Point::new(60.0, 60.0),
+    ]);
+    h.run_steps(2);
+    right_click_mm(&mut h, (100.0, 100.0));
+    assert!(shows(&h, "Terminar sin cerrar") && shows(&h, "Cancelar"));
+    click(&mut h, "Cerrar polígono");
+    assert_eq!(h.state().doc.shapes.len(), 1);
+    assert!(h.state().doc.shapes[0].world_node_paths()[0].closed);
+}
+
+#[test]
+fn layers_panel_context_menu() {
+    let mut h = two_rects();
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    h.state_mut().doc.shapes[1].name = "Rectángulo azul".into();
+    h.state_mut().panel = Some(crate::app::Panel::Layers);
+    h.run_steps(3);
+    h.get_by_label_contains("Rectángulo azul").click_secondary();
+    h.run_steps(3);
+    assert_eq!(
+        h.state().doc.selected,
+        vec![ids[1]],
+        "la fila queda seleccionada"
+    );
+    assert!(shows(&h, "Ocultar") && shows(&h, "Bloquear") && !shows(&h, "Mostrar"));
+    click(&mut h, "Ocultar");
+    assert!(!h.state().doc.shape(ids[1]).unwrap().visible);
+    // Oculta: ahora se ofrece mostrarla.
+    h.get_by_label_contains("Rectángulo azul").click_secondary();
+    h.run_steps(3);
+    click(&mut h, "Mostrar");
+    assert!(h.state().doc.shape(ids[1]).unwrap().visible);
+}
+
+#[test]
+fn tab_context_menu_closes_the_others() {
+    let mut h = app_harness();
+    h.state_mut().new_tab();
+    h.state_mut().new_tab();
+    h.run_steps(3);
+    let titles: Vec<String> = h.state().tab_titles().into_iter().map(|t| t.0).collect();
+    assert_eq!(titles.len(), 3);
+    h.get_by_label_contains(&titles[1]).click_secondary();
+    h.run_steps(3);
+    click(&mut h, "Cerrar los demás");
+    let left: Vec<String> = h.state().tab_titles().into_iter().map(|t| t.0).collect();
+    assert_eq!(left, vec![titles[1].clone()]);
+}
+
 // ---------------------------------------------------------------- Redondear esquinas
 
 #[test]

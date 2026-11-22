@@ -49,7 +49,7 @@ fn path_kind(points: &[Point], closed: bool) -> (Rect, ShapeKind) {
 }
 
 /// Forma bajo el puntero (la de más arriba en la pila).
-fn shape_at(app: &OpenCraftCutterApp, p: Point) -> Option<u64> {
+pub(super) fn shape_at(app: &OpenCraftCutterApp, p: Point) -> Option<u64> {
     let tol = 6.0 / app.canvas.viewport.scale;
     app.doc
         .shapes

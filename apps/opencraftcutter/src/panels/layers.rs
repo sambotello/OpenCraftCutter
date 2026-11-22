@@ -63,6 +63,12 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
                         app.doc.selected = vec![id];
                     }
                 }
+                // Clic derecho: la fila pasa a estar seleccionada (si no lo estaba ya) y el
+                // menú actúa sobre la selección.
+                if label.secondary_clicked() && !app.doc.is_selected(id) {
+                    app.doc.selected = vec![id];
+                }
+                label.context_menu(|ui| row_menu(app, ui));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if state_button(
                         ui,
@@ -123,4 +129,41 @@ fn state_button(
     )
     .on_hover_text(if active { tip_on } else { tip_off })
     .clicked()
+}
+
+/// Menú contextual de una fila: actúa sobre las formas seleccionadas.
+fn row_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
+    use crate::canvas::context_menu;
+    ui.set_min_width(190.0);
+    let ctx = ui.ctx().clone();
+    let all_locked = app.doc.selected_shapes().iter().all(|s| s.locked);
+    let item = |ui: &mut Ui, label: &str, keys: &str| {
+        let clicked = ui
+            .add(egui::Button::new(label).shortcut_text(keys))
+            .clicked();
+        if clicked {
+            ui.close();
+        }
+        clicked
+    };
+    if item(ui, "Copiar", "⌘C") {
+        app.copy_selection(&ctx);
+    }
+    if item(ui, "Duplicar", "⌘D") {
+        app.commit();
+        app.doc.duplicate_selected();
+    }
+    if !all_locked && item(ui, "Borrar", "⌫") {
+        app.delete_selected();
+    }
+    ui.separator();
+    if !all_locked {
+        context_menu::arrange_menus(app, ui);
+        ui.separator();
+    }
+    context_menu::lock_and_hide(app, ui);
+    ui.separator();
+    if item(ui, "Zoom a la selección", "⌘2") {
+        crate::canvas::viewport_actions::zoom_to_selection(app);
+    }
 }

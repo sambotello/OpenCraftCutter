@@ -23,6 +23,9 @@ pub fn document_tabs(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
                 ui.spacing_mut().item_spacing.x = 2.0;
                 let mut switch: Option<usize> = None;
                 let mut close: Option<usize> = None;
+                let mut close_others: Option<usize> = None;
+                let mut new_tab = false;
+                let tab_count = app.tab_titles().len();
                 for (i, (name, dirty)) in app.tab_titles().into_iter().enumerate() {
                     let active = i == app.active_tab();
                     let label = format!("{name}{}", if dirty { " •" } else { "" });
@@ -59,6 +62,27 @@ pub fn document_tabs(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
                                 if r.clicked() {
                                     switch = Some(i);
                                 }
+                                r.context_menu(|ui| {
+                                    if ui.button("Cerrar").clicked() {
+                                        close = Some(i);
+                                        ui.close();
+                                    }
+                                    if tab_count > 1 && ui.button("Cerrar los demás").clicked() {
+                                        close_others = Some(i);
+                                        ui.close();
+                                    }
+                                    ui.separator();
+                                    if ui
+                                        .add(
+                                            egui::Button::new("Nuevo documento")
+                                                .shortcut_text("⌘N"),
+                                        )
+                                        .clicked()
+                                    {
+                                        new_tab = true;
+                                        ui.close();
+                                    }
+                                });
                                 if ui
                                     .add(
                                         egui::Button::new(mi::ICON_CLOSE.rich_text().size(11.0))
@@ -89,6 +113,16 @@ pub fn document_tabs(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
                 }
                 if let Some(i) = close {
                     app.close_tab(i);
+                }
+                if let Some(keep) = close_others {
+                    // De atrás hacia delante: cerrar una pestaña no mueve las anteriores. Si se
+                    // cancela el aviso de cambios sin guardar, esa pestaña se queda.
+                    for j in (0..tab_count).rev().filter(|j| *j != keep) {
+                        app.close_tab(j);
+                    }
+                }
+                if new_tab {
+                    app.new_tab();
                 }
             });
         });

@@ -1,5 +1,6 @@
 //! Lienzo de diseño: vista (paneo/zoom), dibujo de la escena y herramientas de edición.
 
+pub mod context_menu;
 mod overlay;
 pub mod point_edit;
 pub mod render;
@@ -175,6 +176,8 @@ pub struct CanvasState {
     pub text_outlines: std::collections::HashMap<ShapeId, crate::text::Outlines>,
     /// Guías del ajuste en curso en Editar puntos: (objetivo, punto ajustado), en mm.
     pub snap_guides: Vec<(Point, Point)>,
+    /// Dónde se abrió el último menú contextual del lienzo.
+    pub context: Option<context_menu::ContextTarget>,
     /// Redondeo de esquinas que se está ajustando en Editar puntos.
     pub fillet: Option<FilletSession>,
 }
@@ -208,6 +211,7 @@ impl Default for CanvasState {
             eraser_width_mm: 3.0,
             text_outlines: std::collections::HashMap::new(),
             snap_guides: Vec::new(),
+            context: None,
             fillet: None,
         }
     }
@@ -236,6 +240,12 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
 
     let response = ui.allocate_rect(stage, egui::Sense::click_and_drag());
     tools::handle_input(app, ui, &response);
+    if response.secondary_clicked() {
+        if let Some(pos) = response.interact_pointer_pos() {
+            context_menu::secondary_click(app, pos);
+        }
+    }
+    context_menu::show(app, &response);
 
     render::ensure_textures(app, ui.ctx());
     let painter = ui.painter_at(stage);
