@@ -269,6 +269,10 @@ impl OpenCraftCutterApp {
             }
             return;
         }
+        // Con un menú abierto, Esc solo lo cierra (lo hace egui): no deselecciona nada.
+        if egui::Popup::is_any_open(ctx) && ctx.input(|i| i.key_pressed(Key::Escape)) {
+            return;
+        }
         if consume(Modifiers::NONE, Key::Escape) {
             if self.canvas.punch_draw.is_some() {
                 self.canvas.punch_draw = None;

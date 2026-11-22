@@ -758,6 +758,20 @@ impl OpenCraftCutterApp {
         });
     }
 
+    /// Convierte un tramo concreto en recta (`false`) o curva (`true`).
+    pub fn point_segment_set(&mut self, si: usize, seg: usize, curve: bool) {
+        self.edit_nodes(true, |p, _| {
+            let Some(np) = p.get_mut(si).filter(|np| seg < np.segment_count()) else {
+                return;
+            };
+            if curve {
+                np.segment_to_curve(seg);
+            } else {
+                np.segment_to_line(seg);
+            }
+        });
+    }
+
     /// Simplificar: reajusta cada trazo con curvas de pocos nodos.
     pub fn point_simplify(&mut self) {
         let ids: Vec<u64> = match self.canvas.point_edit {
