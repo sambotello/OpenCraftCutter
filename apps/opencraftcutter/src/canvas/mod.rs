@@ -85,12 +85,18 @@ pub enum Drag {
         out: bool,
         committed: bool,
     },
-    /// Mover un vértice de un trazo.
+    /// Mover un vértice de un trazo (y con él, los demás nodos seleccionados).
     MovePoint {
         shape: ShapeId,
         sub: usize,
         idx: usize,
         committed: bool,
+        /// Del nodo al puntero al empezar (mm): el nodo no salta al centro del puntero.
+        grab: kurbo::Vec2,
+        /// Posición del nodo al empezar (para restringir el movimiento con Mayús).
+        origin: Point,
+        /// Puntos a los que se ajusta el nodo, calculados una vez al empezar.
+        targets: std::sync::Arc<Vec<Point>>,
     },
 }
 
@@ -99,6 +105,23 @@ pub enum Drag {
 pub enum EyedropperTarget {
     Fill,
     Line,
+}
+
+/// Redondeo de esquinas en curso: mientras el trazo y la selección de nodos sigan como los
+/// dejó, cambiar el radio vuelve a partir de la forma original en vez de redondear lo ya
+/// redondeado. Al seleccionar otros nodos, el radio pasa a aplicarse a esos.
+#[derive(Debug, Clone)]
+pub struct FilletSession {
+    pub shape: ShapeId,
+    /// Trazados antes de redondear.
+    pub base: Vec<oc_core::nodes::NodePath>,
+    /// Esquinas elegidas (subtrazo, nodo), en `base`.
+    pub corners: Vec<(usize, usize)>,
+    pub radius: f64,
+    /// Trazados tal como quedaron guardados tras aplicar `radius`.
+    pub result: Vec<oc_core::nodes::NodePath>,
+    /// Nodos que quedaron seleccionados (los de los arcos).
+    pub selected: Vec<(usize, usize)>,
 }
 
 /// Trazo en edición de puntos y vértice seleccionado (subtrazo, índice).
@@ -150,6 +173,10 @@ pub struct CanvasState {
     pub eraser_width_mm: f64,
     /// Contornos de texto del frame actual (mm, sin rotar), por id.
     pub text_outlines: std::collections::HashMap<ShapeId, crate::text::Outlines>,
+    /// Guías del ajuste en curso en Editar puntos: (objetivo, punto ajustado), en mm.
+    pub snap_guides: Vec<(Point, Point)>,
+    /// Redondeo de esquinas que se está ajustando en Editar puntos.
+    pub fillet: Option<FilletSession>,
 }
 
 impl Default for CanvasState {
@@ -180,6 +207,8 @@ impl Default for CanvasState {
             logo: None,
             eraser_width_mm: 3.0,
             text_outlines: std::collections::HashMap::new(),
+            snap_guides: Vec::new(),
+            fillet: None,
         }
     }
 }

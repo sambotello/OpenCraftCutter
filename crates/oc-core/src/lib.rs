@@ -18,6 +18,7 @@ pub mod replicate;
 pub mod send;
 pub mod shape;
 pub mod singleline;
+pub mod snap;
 pub mod special;
 pub mod templates;
 pub mod textpath;

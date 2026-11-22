@@ -24,7 +24,7 @@ Software libre de diseño y corte para cortadoras de manualidades, compatible co
 
 **Dibujo y edición**
 - Rectángulo, elipse, línea, polígono, mano alzada y texto (fuentes del sistema).
-- **Editar puntos** con nodos Bézier: mover nodos y manejadores, añadir un nodo con un clic en la línea, selección múltiple (Mayús+clic o recuadro), borrar punto, romper trazado, vértice / suavizar, convertir tramo en recta o curva, simplificar y recuento de nodos. Doble clic en una forma entra en este modo.
+- **Editar puntos** con nodos Bézier: mover nodos y manejadores, añadir un nodo con un clic en la línea, selección múltiple (Mayús+clic o recuadro), ajuste a otros puntos, a la retícula y a la página con guías, alinear y distribuir puntos, posición numérica, flechas del teclado, borrar punto, romper, unir y cerrar trazados, vértice / suavizar / simétrico, convertir tramos en recta o curva, punto medio, invertir sentido, simplificar y recuento de nodos. Doble clic en una forma entra en este modo.
 - Cuchilla y borrador; grupos; trazados compuestos.
 - Marco de selección con cotas, barra de selección con tamaño, posición, punto de referencia y acciones rápidas.
 
@@ -102,7 +102,7 @@ Otras: `OPENCRAFTCUTTER_DEBUG_IMAGE`, `OPENCRAFTCUTTER_DEBUG_OPEN_PATH`, `OPENCR
 
 **Edición:** ⌘Z / ⇧⌘Z deshacer y rehacer · ⌘A seleccionar todo · ⇧⌘A deseleccionar · ⌘D duplicar · Supr borrar · Flechas mover (⇧ ×10) · Espacio desplazar
 
-**Objeto:** ⌘G agrupar · ⇧⌘G desagrupar · ⌘E crear trazado compuesto · ⇧⌘E soltar trazado compuesto · ⌘J simplificar · ⇧⌘W fusionar · ⇧⌘F llenar página · ⇧⌘] / ⇧⌘[ traer al frente / enviar al fondo · ⌘] / ⌘[ adelante / atrás
+**Objeto:** ⌘G agrupar · ⇧⌘G desagrupar · ⌘E crear trazado compuesto · ⇧⌘E soltar trazado compuesto · ⇧⌘J unir trazados · ⌘J simplificar · ⇧⌘W fusionar · ⇧⌘F llenar página · ⇧⌘] / ⇧⌘[ traer al frente / enviar al fondo · ⌘] / ⌘[ adelante / atrás
 
 **Ver:** ⌘1 ajustar a ventana · ⌘2 zoom a la selección · ⌘+ / ⌘- zoom · ⇧⌘P bordes de impresión · ⇧⌘L bordes de corte · ⌥⌘D diseño · ⌥⌘L biblioteca
 

@@ -348,32 +348,25 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 match super::point_edit::hit(app, pos) {
                     Some(Hit::Node(si, ni)) => {
                         app.point_select(si, ni, shift);
-                        app.canvas.drag = Some(Drag::MovePoint {
-                            shape,
-                            sub: si,
-                            idx: ni,
-                            committed: false,
-                        });
+                        app.canvas.drag = move_point_drag(app, shape, si, ni, p, false);
                     }
                     Some(Hit::Handle(si, ni, out)) => {
+                        // Con Alt el manejador se mueve solo: el nodo pasa a ser un vértice.
+                        let committed = alt && app.point_edit_break_handles(si, ni);
                         app.canvas.drag = Some(Drag::MoveHandle {
                             shape,
                             sub: si,
                             idx: ni,
                             out,
-                            committed: false,
+                            committed,
                         });
                     }
                     Some(Hit::Segment(si, seg, t)) => {
                         // Un clic en la línea añade un nodo, como la referencia.
                         app.point_insert(si, seg, t);
                         if let Some((si, ni)) = app.canvas.point_edit.and_then(|pe| pe.selected) {
-                            app.canvas.drag = Some(Drag::MovePoint {
-                                shape,
-                                sub: si,
-                                idx: ni,
-                                committed: true,
-                            });
+                            app.canvas.point_multi.clear();
+                            app.canvas.drag = move_point_drag(app, shape, si, ni, p, true);
                         }
                     }
                     None => {
@@ -735,18 +728,53 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 sub,
                 idx,
                 mut committed,
+                grab,
+                origin,
+                targets,
             } => {
+                let mut to = p - grab;
+                if (to - origin).hypot() * vp.scale < DRAG_THRESHOLD_PX && !committed {
+                    return;
+                }
                 if !committed {
                     app.commit();
                     committed = true;
                 }
-                let _ = shape;
-                app.point_move_node(sub, idx, sp);
+                // Mayús: solo en horizontal, vertical o diagonal desde donde estaba.
+                let mut axes = oc_core::snap::Axes::BOTH;
+                if shift {
+                    (to, axes) = oc_core::snap::constrain_angle(origin, to, 45.0);
+                }
+                // ⌘/Ctrl: sin ajuste mientras se mantiene pulsada.
+                app.canvas.snap_guides.clear();
+                if !ctx.input(|i| i.modifiers.command) {
+                    let page = &app.doc.page;
+                    let none: &[Point] = &[];
+                    let snapped = oc_core::snap::snap_point(
+                        to,
+                        if page.smart_snap { &targets } else { none },
+                        super::point_edit::SNAP_PX / vp.scale,
+                        page.snap_to_grid
+                            .then(|| page.grid_spacing_mm / page.grid_divisions.max(1) as f64),
+                        axes,
+                    );
+                    to = snapped.point;
+                    app.canvas.snap_guides.extend(
+                        [snapped.guide_x, snapped.guide_y]
+                            .into_iter()
+                            .flatten()
+                            .map(|t| (t, to)),
+                    );
+                }
+                app.point_move_node(sub, idx, to);
                 app.canvas.drag = Some(Drag::MovePoint {
                     shape,
                     sub,
                     idx,
                     committed,
+                    grab,
+                    origin,
+                    targets,
                 });
             }
             Drag::MoveHandle {
@@ -760,7 +788,16 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     app.commit();
                     committed = true;
                 }
-                app.point_move_handle(sub, idx, out, p);
+                // Mayús: el manejador gira en pasos de 15° alrededor de su nodo.
+                let mut to = p;
+                if shift {
+                    let node = super::point_edit::edited_paths(app)
+                        .and_then(|(_, paths)| paths.get(sub)?.nodes.get(idx).map(|n| n.p));
+                    if let Some(node) = node {
+                        to = oc_core::snap::constrain_angle(node, p, 15.0).0;
+                    }
+                }
+                app.point_move_handle(sub, idx, out, to);
                 app.canvas.drag = Some(Drag::MoveHandle {
                     shape,
                     sub,
@@ -785,6 +822,7 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
     // Fin de gesto
     if response.drag_stopped() || (!response.is_pointer_button_down_on() && !dragging) {
         app.canvas.drag = None;
+        app.canvas.snap_guides.clear();
         match drag {
             Drag::NodeMarquee { additive, .. } => {
                 if let Some(m) = app.canvas.marquee.take() {
@@ -873,6 +911,34 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
         }
     }
     let _ = viewport_actions::page_frame;
+}
+
+/// Gesto de mover el nodo (`si`, `ni`) pulsado en `p` (mm), con sus objetivos de ajuste.
+fn move_point_drag(
+    app: &OpenCraftCutterApp,
+    shape: u64,
+    si: usize,
+    ni: usize,
+    p: Point,
+    committed: bool,
+) -> Option<Drag> {
+    let (_, paths) = super::point_edit::edited_paths(app)?;
+    let origin = paths.get(si)?.nodes.get(ni)?.p;
+    // Los nodos que se mueven con él no son objetivos.
+    let mut moving = app.selected_nodes();
+    if !moving.contains(&(si, ni)) {
+        moving = vec![(si, ni)];
+    }
+    Some(Drag::MovePoint {
+        shape,
+        sub: si,
+        idx: ni,
+        committed,
+        // Un nodo recién insertado nace bajo el puntero: se arrastra desde ahí.
+        grab: if committed { Vec2::ZERO } else { p - origin },
+        origin,
+        targets: std::sync::Arc::new(super::point_edit::snap_targets(app, &moving)),
+    })
 }
 
 /// Deshace la creación de una forma recién añadida sin dejar rastro en el historial.

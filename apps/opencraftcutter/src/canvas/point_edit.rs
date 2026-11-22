@@ -43,8 +43,8 @@ pub fn hit(app: &OpenCraftCutterApp, pos: egui::Pos2) -> Option<Hit> {
     let (_, paths) = edited_paths(app)?;
     let vp = app.canvas.viewport;
     let r = super::overlay::VERTEX_PX + 2.0;
-    // Manejadores del nodo seleccionado primero (están encima).
-    if let Some((si, ni)) = app.canvas.point_edit.and_then(|pe| pe.selected) {
+    // Manejadores de los nodos seleccionados primero (están encima).
+    for (si, ni) in app.selected_nodes() {
         if let Some(n) = paths.get(si).and_then(|p| p.nodes.get(ni)) {
             for (h, out) in [(n.h_out, true), (n.h_in, false)] {
                 if let Some(h) = h {
@@ -71,6 +71,57 @@ pub fn hit(app: &OpenCraftCutterApp, pos: egui::Pos2) -> Option<Hit> {
         .filter(|(.., d)| *d <= tol_mm)
         .min_by(|a, b| a.3.total_cmp(&b.3))
         .map(|(si, i, t, _)| Hit::Segment(si, i, t))
+}
+
+/// Tolerancia del ajuste en píxeles de pantalla.
+pub const SNAP_PX: f64 = 7.0;
+/// A partir de este número de nodos, una forma ajena solo aporta su caja como objetivo.
+const SNAP_MAX_NODES: usize = 400;
+
+/// Puntos a los que se ajusta un nodo que se arrastra: los demás nodos del trazo en edición
+/// (salvo los que se mueven con él), los nodos y cajas de las otras formas visibles y los
+/// bordes y el centro de la página.
+pub fn snap_targets(app: &OpenCraftCutterApp, moving: &[(usize, usize)]) -> Vec<Point> {
+    let mut out = Vec::new();
+    let Some((id, paths)) = edited_paths(app) else {
+        return out;
+    };
+    for (si, np) in paths.iter().enumerate() {
+        for (ni, n) in np.nodes.iter().enumerate() {
+            if !moving.contains(&(si, ni)) {
+                out.push(n.p);
+            }
+        }
+    }
+    let page = &app.doc.page;
+    for x in [0.0, page.width_mm / 2.0, page.width_mm] {
+        for y in [0.0, page.height_mm / 2.0, page.height_mm] {
+            out.push(Point::new(x, y));
+        }
+    }
+    if page.smart_snap_within_media {
+        return out;
+    }
+    for s in app.doc.shapes.iter().filter(|s| s.visible && s.id != id) {
+        let b = oc_core::edit::shape_bounds(s);
+        for x in [b.x0, b.center().x, b.x1] {
+            for y in [b.y0, b.center().y, b.y1] {
+                out.push(Point::new(x, y));
+            }
+        }
+        if matches!(s.kind, ShapeKind::Path { .. }) {
+            let rot = oc_core::edit::rotation_about(s.center(), s.rotation);
+            let nodes = s.world_node_paths();
+            if nodes.iter().map(|np| np.nodes.len()).sum::<usize>() <= SNAP_MAX_NODES {
+                out.extend(
+                    nodes
+                        .iter()
+                        .flat_map(|np| np.nodes.iter().map(|n| rot * n.p)),
+                );
+            }
+        }
+    }
+    out
 }
 
 /// Nodos de una forma no-trazo (rectángulo, elipse, texto), ya en mm del mundo.
@@ -350,9 +401,231 @@ impl OpenCraftCutterApp {
         let Some((si, ni)) = self.canvas.point_edit.and_then(|pe| pe.selected) else {
             return;
         };
+        let pair = self.join_pair();
         self.edit_nodes(true, |p, sel| {
-            *sel = oc_core::nodes::join_paths(p, si, ni);
+            *sel = match pair {
+                Some((a, b)) => nodes::join_ends(p, a, b),
+                None => nodes::join_paths(p, si, ni),
+            };
         });
+        self.canvas.point_multi.clear();
+    }
+
+    /// Si hay exactamente dos nodos seleccionados y son extremos libres que se pueden unir,
+    /// esos dos (Unir trazados une esos y no el más cercano).
+    pub fn join_pair(&self) -> Option<((usize, usize), (usize, usize))> {
+        let sel = self.selected_nodes();
+        let (_, paths) = edited_paths(self)?;
+        let [a, b] = sel.as_slice() else {
+            return None;
+        };
+        let ok = nodes::is_free_end(&paths, a.0, a.1)
+            && nodes::is_free_end(&paths, b.0, b.1)
+            && (a.0 != b.0 || paths[a.0].nodes.len() >= 3);
+        ok.then_some((*a, *b))
+    }
+
+    /// ¿Se puede unir la selección? Dos extremos elegidos, o uno con otro extremo libre.
+    pub fn can_join(&self) -> bool {
+        if self.join_pair().is_some() {
+            return true;
+        }
+        let sel = self.selected_nodes();
+        let [(si, ni)] = sel.as_slice() else {
+            return false;
+        };
+        edited_paths(self).is_some_and(|(_, p)| nodes::join_target(&p, *si, *ni).is_some())
+    }
+
+    /// Deja de alinear los manejadores del nodo (pasa a vértice), para arrastrar uno solo con
+    /// Alt. Devuelve si cambió algo (y por tanto ya hay una entrada de historial).
+    pub fn point_edit_break_handles(&mut self, si: usize, ni: usize) -> bool {
+        let smooth = edited_paths(self).is_some_and(|(_, p)| {
+            p.get(si)
+                .and_then(|np| np.nodes.get(ni))
+                .is_some_and(|n| n.smooth)
+        });
+        if !smooth {
+            return false;
+        }
+        self.edit_nodes(true, |p, _| {
+            if let Some(np) = p.get_mut(si) {
+                np.make_corner(ni);
+            }
+        });
+        true
+    }
+
+    /// Nodo simétrico: suave y con los dos manejadores iguales.
+    pub fn point_set_symmetric(&mut self) {
+        let sel = self.selected_nodes();
+        if sel.is_empty() {
+            return;
+        }
+        self.edit_nodes(true, |p, _| {
+            for (si, ni) in &sel {
+                if let Some(np) = p.get_mut(*si) {
+                    np.make_symmetric(*ni);
+                }
+            }
+        });
+    }
+
+    /// Alinea entre sí los nodos seleccionados (dos o más).
+    pub fn point_align(&mut self, mode: oc_core::arrange::Align) {
+        let sel = self.selected_nodes();
+        if sel.len() < 2 {
+            return;
+        }
+        self.edit_nodes(true, |p, _| nodes::align_nodes(p, &sel, mode));
+    }
+
+    /// Reparte los nodos seleccionados (tres o más) a intervalos iguales.
+    pub fn point_distribute(&mut self, axis: oc_core::arrange::Axis) {
+        let sel = self.selected_nodes();
+        if sel.len() < 3 {
+            return;
+        }
+        self.edit_nodes(true, |p, _| nodes::distribute_nodes(p, &sel, axis));
+    }
+
+    /// Mueve los nodos seleccionados `d` mm (flechas del teclado). Devuelve si había alguno.
+    pub fn point_nudge(&mut self, d: kurbo::Vec2) -> bool {
+        let sel = self.selected_nodes();
+        if sel.is_empty() {
+            return false;
+        }
+        self.edit_nodes(true, |p, _| {
+            for (si, ni) in &sel {
+                if let Some(q) = p.get(*si).and_then(|np| np.nodes.get(*ni)).map(|n| n.p) {
+                    p[*si].move_node(*ni, q + d);
+                }
+            }
+        });
+        true
+    }
+
+    /// Lleva el nodo principal a `to` (campos X e Y del panel); los demás seleccionados se
+    /// mueven lo mismo. `commit` = nueva entrada de historial.
+    pub fn point_set_position(&mut self, to: Point, commit: bool) {
+        let Some((si, ni)) = self.canvas.point_edit.and_then(|pe| pe.selected) else {
+            return;
+        };
+        if commit {
+            self.commit();
+        }
+        self.point_move_node(si, ni, to);
+    }
+
+    /// Selecciona todos los nodos del trazo en edición.
+    pub fn point_select_all(&mut self) {
+        let Some((_, paths)) = edited_paths(self) else {
+            return;
+        };
+        let all: std::collections::BTreeSet<(usize, usize)> = paths
+            .iter()
+            .enumerate()
+            .flat_map(|(si, np)| (0..np.nodes.len()).map(move |ni| (si, ni)))
+            .collect();
+        if let Some(pe) = self.canvas.point_edit.as_mut() {
+            if pe.selected.is_none() {
+                pe.selected = all.iter().next().copied();
+            }
+        }
+        self.canvas.point_multi = all;
+    }
+
+    /// Quita la selección de nodos. Devuelve si había alguno seleccionado.
+    pub fn point_deselect(&mut self) -> bool {
+        let had = !self.selected_nodes().is_empty();
+        self.canvas.point_multi.clear();
+        if let Some(pe) = self.canvas.point_edit.as_mut() {
+            pe.selected = None;
+        }
+        had
+    }
+
+    /// Trazados (subtrazos) con algún nodo seleccionado.
+    fn selected_subpaths(&self) -> Vec<usize> {
+        let mut v: Vec<usize> = self.selected_nodes().iter().map(|s| s.0).collect();
+        v.dedup();
+        v
+    }
+
+    /// Invierte el sentido de los trazados con nodos seleccionados (cambia por dónde empieza
+    /// el corte y hacia dónde va).
+    pub fn point_reverse(&mut self) {
+        let subs = self.selected_subpaths();
+        if subs.is_empty() {
+            return;
+        }
+        self.edit_nodes(true, |p, sel| {
+            for si in &subs {
+                if let Some(np) = p.get_mut(*si) {
+                    np.reverse();
+                }
+            }
+            *sel = None;
+        });
+        self.canvas.point_multi.clear();
+    }
+
+    /// ¿Hay algún trazado abierto (de tres nodos o más) con nodos seleccionados?
+    pub fn can_close(&self) -> bool {
+        let subs = self.selected_subpaths();
+        edited_paths(self).is_some_and(|(_, p)| {
+            subs.iter().any(|si| {
+                p.get(*si)
+                    .is_some_and(|np| !np.closed && np.nodes.len() >= 3)
+            })
+        })
+    }
+
+    /// Cierra con un tramo recto los trazados abiertos con nodos seleccionados.
+    pub fn point_close(&mut self) {
+        let subs = self.selected_subpaths();
+        if !self.can_close() {
+            return;
+        }
+        self.edit_nodes(true, |p, _| {
+            for si in &subs {
+                if let Some(np) = p.get_mut(*si) {
+                    np.close();
+                }
+            }
+        });
+    }
+
+    /// Tramos donde «Añadir punto medio» pondría un nodo: los que tienen sus dos nodos
+    /// seleccionados o, con un solo nodo, el tramo resaltado.
+    pub fn midpoint_segments(&self) -> Vec<(usize, usize)> {
+        let Some((_, paths)) = edited_paths(self) else {
+            return Vec::new();
+        };
+        let sel = self.selected_nodes();
+        if let [(si, ni)] = sel.as_slice() {
+            return paths
+                .get(*si)
+                .and_then(|np| highlighted_segment(np, *ni))
+                .map(|seg| vec![(*si, seg)])
+                .unwrap_or_default();
+        }
+        nodes::selected_segments(&paths, &sel)
+    }
+
+    /// Añade un nodo en el punto medio de los tramos seleccionados; los nuevos quedan
+    /// seleccionados.
+    pub fn point_midpoints(&mut self) {
+        let segs = self.midpoint_segments();
+        if segs.is_empty() {
+            return;
+        }
+        let mut new = Vec::new();
+        self.edit_nodes(true, |p, sel| {
+            new = nodes::insert_midpoints(p, &segs);
+            *sel = new.first().copied();
+        });
+        self.canvas.point_multi = new.into_iter().collect();
     }
 
     pub fn point_set_smooth(&mut self, smooth: bool) {
@@ -373,21 +646,115 @@ impl OpenCraftCutterApp {
         });
     }
 
-    /// Convertir el tramo resaltado en recta (`false`) o curva (`true`).
+    /// Convertir en recta (`false`) o curva (`true`) los tramos seleccionados: los que tienen
+    /// sus dos nodos seleccionados o, con un solo nodo, el tramo resaltado.
     pub fn point_segment_kind(&mut self, curve: bool) {
-        let Some((si, ni)) = self.canvas.point_edit.and_then(|pe| pe.selected) else {
+        let segs = self.midpoint_segments();
+        if segs.is_empty() {
             return;
-        };
+        }
         self.edit_nodes(true, |p, _| {
-            if let Some(np) = p.get_mut(si) {
-                if let Some(seg) = highlighted_segment(np, ni) {
-                    if curve {
-                        np.segment_to_curve(seg);
-                    } else {
-                        np.segment_to_line(seg);
-                    }
+            for (si, seg) in &segs {
+                let Some(np) = p.get_mut(*si) else {
+                    continue;
+                };
+                if curve {
+                    np.segment_to_curve(*seg);
+                } else {
+                    np.segment_to_line(*seg);
                 }
             }
+        });
+    }
+
+    /// Redondeo en curso, si el trazo en edición y la selección de nodos siguen como los
+    /// dejó. Con otros nodos seleccionados, el radio es para esos: empieza un redondeo nuevo.
+    fn fillet_session(&self) -> Option<&super::FilletSession> {
+        let pe = self.canvas.point_edit?;
+        let f = self.canvas.fillet.as_ref()?;
+        if f.shape != pe.shape || f.selected != self.selected_nodes() {
+            return None;
+        }
+        let current = self.doc.shape(pe.shape)?.world_node_paths();
+        (f.result == current).then_some(f)
+    }
+
+    /// Radio (mm) del redondeo que se está ajustando; 0 si no hay ninguno.
+    pub fn fillet_radius(&self) -> f64 {
+        self.fillet_session().map_or(0.0, |f| f.radius)
+    }
+
+    /// ¿Se puede redondear? Hay un redondeo en curso o alguna esquina entre los nodos
+    /// seleccionados.
+    pub fn can_fillet(&self) -> bool {
+        if self.fillet_session().is_some() {
+            return true;
+        }
+        let sel = self.selected_nodes();
+        edited_paths(self).is_some_and(|(_, p)| {
+            sel.iter()
+                .any(|(si, ni)| p.get(*si).is_some_and(|np| nodes::is_corner(np, *ni)))
+        })
+    }
+
+    /// Redondea las esquinas seleccionadas con arcos de `radius` mm. Llamadas seguidas (al
+    /// arrastrar el valor) ajustan el mismo redondeo: una sola entrada de historial, siempre
+    /// a partir de la forma original. Con radio 0 vuelve la esquina viva.
+    pub fn point_fillet(&mut self, radius: f64) {
+        let Some(pe) = self.canvas.point_edit else {
+            return;
+        };
+        let radius = radius.max(0.0);
+        let (base, corners) = match self.fillet_session() {
+            Some(f) => (f.base.clone(), f.corners.clone()),
+            None => {
+                let Some((_, paths)) = edited_paths(self) else {
+                    return;
+                };
+                let corners: Vec<(usize, usize)> = self
+                    .selected_nodes()
+                    .into_iter()
+                    .filter(|(si, ni)| paths.get(*si).is_some_and(|np| nodes::is_corner(np, *ni)))
+                    .collect();
+                if corners.is_empty() || radius == 0.0 {
+                    return;
+                }
+                self.commit();
+                (paths, corners)
+            }
+        };
+        let mut selected: Vec<(usize, usize)> = Vec::new();
+        let paths: Vec<NodePath> = base
+            .iter()
+            .enumerate()
+            .map(|(si, np)| {
+                let here: Vec<usize> = corners.iter().filter(|c| c.0 == si).map(|c| c.1).collect();
+                let (out, new) = nodes::fillet_corners(np, &here, radius);
+                // Con radio 0 no hay nodos nuevos: se vuelven a seleccionar las esquinas.
+                let keep = if new.is_empty() { here } else { new };
+                selected.extend(keep.into_iter().map(|ni| (si, ni)));
+                out
+            })
+            .collect();
+        let Some(s) = self.doc.shape_mut(pe.shape) else {
+            return;
+        };
+        s.set_world_node_paths(&paths);
+        let result = s.world_node_paths();
+        selected.sort_unstable();
+        selected.dedup();
+        self.canvas.point_multi = selected.iter().copied().collect();
+        self.canvas.point_edit = Some(PointEdit {
+            shape: pe.shape,
+            selected: selected.first().copied(),
+        });
+        self.canvas.fillet = Some(super::FilletSession {
+            shape: pe.shape,
+            base,
+            corners,
+            radius,
+            result,
+            selected,
         });
     }
 

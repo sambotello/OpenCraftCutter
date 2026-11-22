@@ -31,8 +31,14 @@ pub enum Cmd {
     ToPath,
     MakeCompound,
     ReleaseCompound,
+    /// Unir los trazados abiertos de la selección en uno solo por sus extremos.
+    JoinPaths,
     Simplify,
 }
+
+/// Distancia (mm) hasta la que dos extremos se funden en un nodo al unir trazados; más lejos
+/// se conectan con un tramo recto.
+pub const JOIN_FUSE_MM: f64 = 0.1;
 
 /// Separación entre piezas al acomodarlas (mm).
 pub const PACK_GAP_MM: f64 = 3.0;
@@ -79,6 +85,16 @@ impl OpenCraftCutterApp {
             Cmd::Bool(BoolOp::Weld) => n >= 1,
             Cmd::Bool(_) => n >= 2,
             Cmd::MakeCompound => n >= 2,
+            // Dos trazados abiertos o más, en una forma o repartidos entre varias.
+            Cmd::JoinPaths => {
+                shapes
+                    .iter()
+                    .filter(|s| !s.locked && matches!(s.kind, oc_core::ShapeKind::Path { .. }))
+                    .flat_map(|s| s.world_node_paths())
+                    .filter(|np| !np.closed)
+                    .count()
+                    >= 2
+            }
             Cmd::Group => n >= 2,
             Cmd::Ungroup => self.doc.selection_has_group(),
             Cmd::BreakApart | Cmd::ReleaseCompound => {
@@ -221,6 +237,28 @@ impl OpenCraftCutterApp {
                 if let Some(out) = ops::combine(&paths) {
                     self.replace_shapes(&ids, vec![out]);
                 }
+            }
+            Cmd::JoinPaths => {
+                // Solo los trazos; con su rotación aplicada para trabajar en el mundo.
+                let parts: Vec<Shape> = shapes
+                    .iter()
+                    .filter(|s| matches!(s.kind, oc_core::ShapeKind::Path { .. }))
+                    .filter_map(crate::canvas::point_edit::to_editable_path)
+                    .collect();
+                let mut paths: Vec<oc_core::nodes::NodePath> =
+                    parts.iter().flat_map(|s| s.world_node_paths()).collect();
+                if oc_core::nodes::join_open_paths(&mut paths, JOIN_FUSE_MM) == 0 {
+                    return;
+                }
+                // El resultado toma el estilo de la primera forma.
+                let Some(mut out) = parts.first().cloned() else {
+                    return;
+                };
+                out.id = 0;
+                out.group = None;
+                out.set_world_node_paths(&paths);
+                let ids: Vec<u64> = parts.iter().map(|s| s.id).collect();
+                self.replace_shapes(&ids, vec![out]);
             }
             Cmd::Group => {
                 self.commit();
@@ -384,6 +422,7 @@ pub fn menu(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
             Some(("Convertir en trazado", "", Cmd::ToPath)),
             Some(("Crear trazado compuesto", "⌘E", Cmd::MakeCompound)),
             Some(("Soltar trazado compuesto", "⇧⌘E", Cmd::ReleaseCompound)),
+            Some(("Unir trazados", "⇧⌘J", Cmd::JoinPaths)),
             None,
             Some(("Simplificar", "⌘J", Cmd::Simplify)),
         ],

@@ -946,6 +946,7 @@ pub fn parse(d: &[u8]) -> Result<Studio3Doc, Studio3Error> {
                             h_in: hi.map(|v| w + (lin * v.to_point()).to_vec2()),
                             h_out: ho.map(|v| w + (lin * v.to_point()).to_vec2()),
                             smooth: false,
+                            symmetric: false,
                         }
                     })
                     .collect(),

@@ -378,13 +378,32 @@
   <h2>Editar puntos</h2>
   <p class="entrada">Toda forma está hecha de nodos unidos por tramos rectos o curvos. Editar puntos te deja moverlos, añadir o quitar nodos y cambiar el tipo de cada tramo.</p>
 
-  <p>Entra con <kbd>A</kbd> o con doble clic sobre una forma. Los nodos aparecen como cuadraditos; al seleccionar uno, sus manejadores de curva aparecen como puntos unidos por una línea.</p>
+  <p>Entra con <kbd>A</kbd> o con doble clic sobre una forma. Los nodos aparecen como cuadraditos; al seleccionar uno, sus manejadores de curva aparecen como puntos unidos por una línea. Al pasar el puntero, un anillo marca el nodo o el manejador que vas a coger, o el punto de la línea donde un clic añadiría un nodo.</p>
   <ul>
-    <li><strong>Mover un nodo:</strong> arrástralo. <kbd>⇧</kbd>+clic añade nodos a la selección para moverlos juntos.</li>
+    <li><strong>Mover un nodo:</strong> arrástralo, o escribe su <span class="ui">Posición</span> X e Y en el panel. Con las flechas se mueve 1 mm (<kbd>⇧</kbd> 10 mm, <kbd>⌥</kbd> 0,1 mm).</li>
+    <li><strong>Seleccionar varios:</strong> <kbd>⇧</kbd>+clic, un recuadro arrastrando en vacío o <kbd>⌘A</kbd> para todos. Al arrastrar uno se mueven todos. <kbd>Esc</kbd> los suelta; un segundo <kbd>Esc</kbd> sale de la forma.</li>
     <li><strong>Añadir un nodo:</strong> haz clic sobre la línea.</li>
-    <li><strong>Curvar:</strong> arrastra un manejador. En un nodo suave, los dos manejadores se mueven alineados.</li>
+    <li><strong>Curvar:</strong> arrastra un manejador. En un nodo suave, los dos manejadores se mueven alineados; con <kbd>⌥</kbd> se mueve solo ese (el nodo pasa a vértice) y con <kbd>⇧</kbd> gira de 15° en 15°.</li>
     <li><strong>Borrar un nodo:</strong> <kbd>⌫</kbd> (en este modo nunca borra la forma entera).</li>
   </ul>
+
+  <h3>Ajuste y guías</h3>
+  <p>Mientras arrastras un nodo, se ajusta a lo que tiene cerca y una guía rosa te enseña con qué se ha alineado. Se activa en la sección <span class="ui">Ajuste</span> del panel.</p>
+  <ul>
+    <li><strong>Ajustar a puntos y guías:</strong> el nodo se alinea en horizontal o en vertical con los demás nodos de la forma, con los nodos, bordes y centros de las otras formas y con los bordes y el centro de la página. Si coinciden las dos guías, cae justo encima del otro punto.</li>
+    <li><strong>Ajustar a retícula:</strong> donde no hay ningún punto cerca, el nodo cae en la retícula.</li>
+    <li><kbd>⇧</kbd> al arrastrar: el nodo solo se mueve en horizontal, en vertical o en diagonal desde donde estaba.</li>
+    <li><kbd>⌘</kbd> al arrastrar: sin ajuste mientras la mantienes pulsada.</li>
+  </ul>
+
+  <h3>Redondear esquinas</h3>
+  <p>Selecciona uno o varios puntos en esquina y sube el <span class="ui">Radio</span> de la sección <span class="ui">Redondear esquina</span>: la punta se sustituye por un arco tangente a los dos tramos. Puedes arrastrar el valor o escribirlo, y seguir ajustándolo: siempre parte de la esquina original, y con 0 vuelve la punta. Sirve entre rectas, entre curvas y entre una recta y una curva. Si el radio no cabe en los tramos, se usa el mayor posible. En cuanto haces otra edición, el redondeo queda fijado como nodos normales.</p>
+
+  <h3>Alinear y distribuir puntos</h3>
+  <p>Con dos o más nodos seleccionados, la sección <span class="ui">Alinear puntos</span> los pone a la misma altura o en la misma vertical (izquierda, centro, derecha, arriba, medio, abajo). Con tres o más, <span class="ui">Distribuir</span> los reparte a intervalos iguales entre los dos de los extremos. Los manejadores se mueven con su nodo, así que las curvas conservan su forma.</p>
+
+  <h3>Unir líneas sueltas</h3>
+  <p>Dos líneas dibujadas por separado son dos formas. Para convertirlas en un solo trazado, selecciónalas con la herramienta Seleccionar y elige <span class="ui">Objeto → Unir trazados</span> <kbd>⇧⌘J</kbd>. Los extremos más cercanos se van juntando hasta que queda un solo trazado: si coinciden (a 0,1 mm o menos) se funden en un nodo; si están separados, se conectan con un tramo recto sin mover nada. Si al final los dos extremos coinciden, la forma queda cerrada. El resultado toma el color y el grosor de la primera línea.</p>
 
   <h3>Acciones del panel</h3>
   <p>Están en el panel <span class="ui">Editar puntos</span> y también en la barra superior mientras usas la herramienta.</p>
@@ -392,10 +411,14 @@
     <tr><th>Acción</th><th>Qué hace</th></tr>
     <tr><td><span class="ui">Borrar punto</span></td><td>Quita el nodo seleccionado; los tramos vecinos se unen.</td></tr>
     <tr><td><span class="ui">Romper trazado</span></td><td>Abre la forma en el nodo seleccionado. Un trazado cerrado queda abierto ahí; uno abierto se parte en dos.</td></tr>
-    <tr><td><span class="ui">Unir trazados</span></td><td>Con un extremo de un trazado abierto seleccionado, lo une con el extremo libre más cercano de la misma forma. Los dos extremos se funden en un único nodo en su punto medio. Si el extremo más cercano es el otro extremo del mismo trazado, la forma se cierra. Deshace exactamente un «Romper trazado».</td></tr>
+    <tr><td><span class="ui">Unir trazados</span></td><td>Con dos extremos libres seleccionados, une esos dos. Con un solo extremo de un trazado abierto seleccionado, lo une con el extremo libre más cercano de la misma forma. Los dos extremos se funden en un único nodo en su punto medio. Si el extremo más cercano es el otro extremo del mismo trazado, la forma se cierra. Deshace exactamente un «Romper trazado».</td></tr>
     <tr><td><span class="ui">Vértice</span></td><td>Nodo en esquina: sus dos manejadores se mueven por separado.</td></tr>
     <tr><td><span class="ui">Suavizar</span></td><td>Nodo suave: manejadores alineados para una curva continua.</td></tr>
-    <tr><td><span class="ui">Convertir en recta / en curva</span></td><td>Cambia el tramo resaltado entre recto y curvo.</td></tr>
+    <tr><td><span class="ui">Simétrico</span></td><td>Nodo suave cuyos dos manejadores miden siempre lo mismo: la curva entra y sale igual.</td></tr>
+    <tr><td><span class="ui">Convertir en recta / en curva</span></td><td>Cambia entre recto y curvo el tramo resaltado o, con varios nodos seleccionados, todos los tramos que hay entre ellos.</td></tr>
+    <tr><td><span class="ui">Añadir punto medio</span></td><td>Pone un nodo en la mitad del tramo resaltado (o de cada tramo entre nodos seleccionados) sin cambiar la forma.</td></tr>
+    <tr><td><span class="ui">Invertir sentido</span></td><td>Cambia el sentido del trazado, y con él hacia dónde corta la máquina. La forma no cambia.</td></tr>
+    <tr><td><span class="ui">Cerrar trazado</span></td><td>Cierra un trazado abierto con un tramo recto del último nodo al primero.</td></tr>
     <tr><td><span class="ui">Simplificar</span> <kbd>⌘J</kbd></td><td>Reduce el número de nodos manteniendo la forma. Muy útil tras trazar una imagen.</td></tr>
     <tr><td><span class="ui">Convertir en trazado</span></td><td>Convierte rectángulos, elipses y textos en trazados editables nodo a nodo.</td></tr>
   </table>
