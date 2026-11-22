@@ -35,7 +35,10 @@ impl OpenCraftCutterApp {
                 .filter(|e| {
                     matches!(
                         e,
-                        egui::Event::Copy | egui::Event::Cut | egui::Event::Paste(_)
+                        egui::Event::Copy
+                            | egui::Event::Cut
+                            | egui::Event::Paste(_)
+                            | egui::Event::PasteImage(_)
                     )
                 })
                 .cloned()
@@ -46,6 +49,7 @@ impl OpenCraftCutterApp {
                 egui::Event::Copy => self.copy_selection(ctx),
                 egui::Event::Cut => self.cut_selection(ctx),
                 egui::Event::Paste(text) => self.paste_text(ctx, &text),
+                egui::Event::PasteImage(img) => self.paste_color_image(ctx, &img),
                 _ => {}
             }
         }

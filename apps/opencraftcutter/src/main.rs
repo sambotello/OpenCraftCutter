@@ -7,6 +7,7 @@ mod app;
 #[cfg(test)]
 mod app_tests;
 mod canvas;
+mod clipboard;
 mod edit_menu;
 mod file_drop;
 mod file_menu;

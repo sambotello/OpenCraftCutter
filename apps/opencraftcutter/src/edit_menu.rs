@@ -2,6 +2,7 @@
 //! (cortar, copiar, pegar, pegar delante), borrar, duplicar, selección y preferencias.
 
 use crate::app::OpenCraftCutterApp;
+use crate::clipboard::Pasted;
 use oc_core::Color;
 use oc_core::shape::Shape;
 
@@ -71,24 +72,90 @@ impl OpenCraftCutterApp {
             }
             return self.paste(false);
         }
-        if text.trim_start().starts_with("<svg") || text.contains("<svg ") {
-            match oc_svg::import_svg(text, self.defaults.stroke) {
-                Ok(r) if !r.shapes.is_empty() => {
-                    self.commit();
-                    self.doc.selected = r
-                        .shapes
-                        .into_iter()
-                        .map(|s| self.doc.add_shape(s))
-                        .collect();
-                }
-                _ => self.notify(
-                    ctx,
-                    "El portapapeles no contiene formas que se puedan pegar.",
-                ),
-            }
-            return;
+        // Además del texto, el portapapeles puede traer algo mejor: «Copiar imagen» en un
+        // navegador deja la imagen y, como texto, solo su dirección.
+        if let Some(content) = crate::clipboard::read() {
+            return self.paste_content(ctx, content);
+        }
+        if crate::clipboard::looks_like_svg(text) {
+            return self.paste_content(ctx, Pasted::Svg(text.to_string()));
         }
         self.paste(false);
+    }
+
+    /// «Pegar» desde un menú: lo que haya en el portapapeles del sistema (formas copiadas
+    /// aquí, vectores SVG, imágenes o archivos) o, si no hay nada, el portapapeles interno.
+    pub fn paste_system(&mut self, ctx: &egui::Context) {
+        match crate::clipboard::read_text() {
+            Some(text) => self.paste_text(ctx, &text),
+            None => match crate::clipboard::read() {
+                Some(content) => self.paste_content(ctx, content),
+                None => self.paste(false),
+            },
+        }
+    }
+
+    /// ¿Hay algo que pegar (en el portapapeles interno o en el del sistema)?
+    pub fn can_paste(&self) -> bool {
+        !self.clipboard.is_empty() || crate::clipboard::has_content()
+    }
+
+    /// Imagen pegada sin más formato (lo que entrega egui cuando no hay texto).
+    pub fn paste_color_image(&mut self, ctx: &egui::Context, img: &egui::ColorImage) {
+        if let Some(content) = crate::clipboard::read() {
+            return self.paste_content(ctx, content);
+        }
+        let [w, h] = img.size;
+        let mut png = Vec::new();
+        let ok = image::RgbaImage::from_raw(w as u32, h as u32, img.as_raw().to_vec())
+            .and_then(|rgba| {
+                rgba.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+                    .ok()
+            })
+            .is_some();
+        if ok {
+            self.paste_content(ctx, Pasted::Image(png));
+        }
+    }
+
+    /// Añade al documento lo leído del portapapeles del sistema.
+    pub fn paste_content(&mut self, ctx: &egui::Context, content: Pasted) {
+        match content {
+            Pasted::Svg(text) => {
+                let empty = oc_svg::import_svg(&text, self.defaults.stroke)
+                    .map_or(true, |r| r.shapes.is_empty());
+                if empty {
+                    return self.notify(
+                        ctx,
+                        "El portapapeles no contiene formas que se puedan pegar.",
+                    );
+                }
+                self.import_svg_text(ctx, &text, "el portapapeles");
+            }
+            Pasted::Image(bytes) => self.add_image_bytes(ctx, "Imagen pegada", &bytes),
+            Pasted::Files(files) => {
+                let (ok, skipped): (Vec<_>, Vec<_>) = files
+                    .into_iter()
+                    .partition(|p| crate::file_drop::supported(p));
+                if ok.is_empty() {
+                    let n = skipped.len();
+                    return self.notify(
+                        ctx,
+                        format!(
+                            "{n} archivo(s) copiados no se pueden pegar: se aceptan documentos, SVG e imágenes."
+                        ),
+                    );
+                }
+                // Como al soltarlos en el lienzo, pero en el centro de lo que se ve.
+                let center = self.canvas.viewport.to_world(self.canvas.stage.center());
+                self.add_files_at(ctx, &ok, center);
+            }
+            Pasted::PdfOnly => self.notify(
+                ctx,
+                "El portapapeles trae los vectores solo como PDF, que aún no se puede pegar. \
+                 Cópialos como SVG desde el programa de origen.",
+            ),
+        }
     }
 
     /// Colores de línea y de relleno usados en el documento (sin repetir).
@@ -174,12 +241,12 @@ pub fn menu(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
         app.copy_selection(&ctx);
         ui.close();
     }
-    let can_paste = !app.clipboard.is_empty();
+    let can_paste = app.can_paste();
     if item(ui, "Pegar", "⌘V", can_paste) {
-        app.paste(false);
+        app.paste_system(&ctx);
         ui.close();
     }
-    if item(ui, "Pegar delante", "⌘F", can_paste) {
+    if item(ui, "Pegar delante", "⌘F", !app.clipboard.is_empty()) {
         app.paste(true);
         ui.close();
     }

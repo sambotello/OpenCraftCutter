@@ -142,12 +142,16 @@ fn submenu(
     });
 }
 
-/// Pega el portapapeles centrado en `at`.
-pub fn paste_at(app: &mut OpenCraftCutterApp, at: Point) {
-    if app.clipboard.is_empty() {
+/// Pega el portapapeles (formas copiadas aquí o lo que traiga el del sistema) centrado en `at`.
+pub fn paste_at(app: &mut OpenCraftCutterApp, ctx: &egui::Context, at: Point) {
+    let before = app.doc.selected.clone();
+    let count = app.doc.shapes.len();
+    app.paste_system(ctx);
+    // Sin formas nuevas (nada que pegar, o un documento que se abrió en otra pestaña) no hay
+    // nada que colocar.
+    if app.doc.shapes.len() <= count || app.doc.selected == before {
         return;
     }
-    app.paste(true);
     let shapes: Vec<oc_core::Shape> = app.doc.selected_shapes().into_iter().cloned().collect();
     for moved in oc_core::arrange::center_group_on(&shapes, at) {
         if let Some(s) = app.doc.shape_mut(moved.id) {
@@ -275,8 +279,8 @@ fn selection_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarg
     if item(ui, "Copiar", "⌘C") {
         app.copy_selection(&ctx);
     }
-    if !app.clipboard.is_empty() && item(ui, "Pegar aquí", "") {
-        paste_at(app, target.at);
+    if app.can_paste() && item(ui, "Pegar aquí", "") {
+        paste_at(app, &ctx, target.at);
     }
     if item(ui, "Duplicar", "⌘D") {
         app.commit();
@@ -341,11 +345,12 @@ fn selection_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarg
 
 /// En vacío, sin nada seleccionado.
 fn empty_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarget) {
-    if !app.clipboard.is_empty() {
+    let ctx = ui.ctx().clone();
+    if app.can_paste() {
         if item(ui, "Pegar aquí", "") {
-            paste_at(app, target.at);
+            paste_at(app, &ctx, target.at);
         }
-        if item(ui, "Pegar delante", "⌘F") {
+        if !app.clipboard.is_empty() && item(ui, "Pegar delante", "⌘F") {
             app.paste(true);
         }
         ui.separator();

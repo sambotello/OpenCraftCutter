@@ -225,7 +225,13 @@ impl OpenCraftCutterApp {
             Ok(t) => t,
             Err(e) => return self.show_error(ctx, format!("No se pudo leer el archivo: {e}")),
         };
-        match oc_svg::import_svg(&text, self.defaults.stroke) {
+        self.import_svg_text(ctx, &text, &stem(path));
+    }
+
+    /// Añade al documento las formas de un SVG (de un archivo o del portapapeles) y las deja
+    /// seleccionadas. `source` es el nombre que se cita en el aviso.
+    pub fn import_svg_text(&mut self, ctx: &egui::Context, text: &str, source: &str) {
+        match oc_svg::import_svg(text, self.defaults.stroke) {
             Ok(result) => {
                 self.commit();
                 let ids: Vec<_> = result
@@ -236,7 +242,7 @@ impl OpenCraftCutterApp {
                 let count = ids.len();
                 self.doc.selected = ids;
                 self.workspace = Workspace::Design;
-                let mut msg = format!("Importadas {count} formas de {}.", stem(path));
+                let mut msg = format!("Importadas {count} formas de {source}.");
                 for w in result.warnings {
                     msg.push(' ');
                     msg.push_str(&w);
@@ -266,7 +272,13 @@ impl OpenCraftCutterApp {
             Ok(b) => b,
             Err(e) => return self.show_error(ctx, format!("No se pudo leer la imagen: {e}")),
         };
-        match oc_trace::to_png(&bytes) {
+        self.add_image_bytes(ctx, &stem(path), &bytes);
+    }
+
+    /// Añade una imagen (de un archivo o del portapapeles) centrada en la página, seleccionada
+    /// y con el panel Trazar abierto.
+    pub fn add_image_bytes(&mut self, ctx: &egui::Context, name: &str, bytes: &[u8]) {
+        match oc_trace::to_png(bytes) {
             Ok((png, w, h)) => {
                 // Tamaño físico a 96 dpi, limitado al 80 % de la página.
                 let px_mm = oc_core::units::MM_PER_IN / 96.0;
@@ -286,7 +298,7 @@ impl OpenCraftCutterApp {
                 };
                 let mut s = oc_core::Shape::new(
                     0,
-                    stem(path),
+                    name,
                     kurbo::Rect::new(x0, y0, x0 + wmm, y0 + hmm),
                     kind,
                 );

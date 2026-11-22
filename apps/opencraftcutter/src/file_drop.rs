@@ -130,13 +130,24 @@ impl OpenCraftCutterApp {
             .or(pointer)
             .filter(|p| stage.contains(*p))
             .unwrap_or(stage.center());
-        let mut target = self.canvas.viewport.to_world(screen);
-        for path in ok {
-            if ext(&path) == DOCUMENT_EXTENSION {
-                self.open_path(ctx, &path);
+        let target = self.canvas.viewport.to_world(screen);
+        self.add_files_at(ctx, &ok, target);
+    }
+
+    /// Añade archivos admitidos al documento, el primero centrado en `target` (mm) y los
+    /// siguientes en cascada. Los documentos `.opencraftcutter` se abren en pestaña nueva.
+    pub fn add_files_at(
+        &mut self,
+        ctx: &egui::Context,
+        files: &[PathBuf],
+        mut target: kurbo::Point,
+    ) {
+        for path in files {
+            if ext(path) == DOCUMENT_EXTENSION {
+                self.open_path(ctx, path);
                 continue;
             }
-            self.add_file_at(ctx, &path, target);
+            self.add_file_at(ctx, path, target);
             target += kurbo::Vec2::new(CASCADE_MM, CASCADE_MM);
         }
     }
