@@ -2583,6 +2583,134 @@ fn tab_context_menu_closes_the_others() {
     assert_eq!(left, vec![titles[1].clone()]);
 }
 
+// ---------------------------------------------------------------- Pegar del portapapeles del sistema
+
+use crate::clipboard::Pasted;
+
+/// PNG de `w` × `h` píxeles de un solo color.
+fn png_bytes(w: u32, h: u32) -> Vec<u8> {
+    let img = image::RgbaImage::from_pixel(w, h, image::Rgba([200, 30, 30, 255]));
+    let mut out = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+        .unwrap();
+    out
+}
+
+const SVG_TWO_SHAPES: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 100 50"><rect x="10" y="10" width="30" height="20" fill="none" stroke="black"/><circle cx="70" cy="25" r="10" fill="none" stroke="black"/></svg>"#;
+
+#[test]
+fn paste_vectors_copied_as_svg() {
+    let mut a = app();
+    let ctx = egui::Context::default();
+    a.paste_content(&ctx, Pasted::Svg(SVG_TWO_SHAPES.into()));
+    assert_eq!(a.doc.shapes.len(), 2, "un rectángulo y un círculo");
+    assert_eq!(a.doc.selected.len(), 2, "lo pegado queda seleccionado");
+    assert!(a.doc.shapes.iter().all(|s| !s.is_image()), "son vectores");
+    a.undo();
+    assert!(a.doc.shapes.is_empty(), "un solo deshacer lo quita");
+    // Un SVG sin formas no añade nada.
+    a.paste_content(
+        &ctx,
+        Pasted::Svg(r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#.into()),
+    );
+    assert!(a.doc.shapes.is_empty());
+    // El texto con SVG que llega por ⌘V sigue el mismo camino.
+    a.paste_text(&ctx, SVG_TWO_SHAPES);
+    assert_eq!(a.doc.shapes.len(), 2);
+}
+
+#[test]
+fn paste_an_image_from_the_clipboard() {
+    let mut a = app();
+    let ctx = egui::Context::default();
+    a.paste_content(&ctx, Pasted::Image(png_bytes(192, 96)));
+    assert_eq!(a.doc.shapes.len(), 1);
+    let s = &a.doc.shapes[0];
+    assert!(s.is_image() && a.doc.selected == vec![s.id]);
+    // 96 ppp: 192 × 96 px son 50,8 × 25,4 mm, centrada en la página.
+    assert!((s.rect.width() - 50.8).abs() < 1e-6 && (s.rect.height() - 25.4).abs() < 1e-6);
+    let page = &a.doc.page;
+    assert!((s.rect.center().x - page.width_mm / 2.0).abs() < 1e-6);
+    // Datos que no son una imagen: no se añade nada.
+    a.paste_content(&ctx, Pasted::Image(b"esto no es una imagen".to_vec()));
+    assert_eq!(a.doc.shapes.len(), 1);
+    // Vectores solo en PDF: se avisa y no se añade nada.
+    a.paste_content(&ctx, Pasted::PdfOnly);
+    assert_eq!(a.doc.shapes.len(), 1);
+    assert!(a.toast.as_ref().is_some_and(|t| t.0.contains("PDF")));
+}
+
+#[test]
+fn paste_image_event_without_text() {
+    // Lo que entrega egui con ⌘V cuando el portapapeles solo tiene una imagen.
+    let mut h = app_harness();
+    let img = egui::ColorImage::filled([40, 20], egui::Color32::from_rgb(10, 120, 200));
+    h.event(egui::Event::PasteImage(std::sync::Arc::new(img)));
+    h.run_steps(3);
+    let a = h.state();
+    assert_eq!(a.doc.shapes.len(), 1);
+    assert!(a.doc.shapes[0].is_image());
+    match &a.doc.shapes[0].kind {
+        ShapeKind::Image {
+            px_width,
+            px_height,
+            ..
+        } => assert_eq!((*px_width, *px_height), (40, 20)),
+        other => panic!("no es una imagen: {other:?}"),
+    }
+}
+
+#[test]
+fn paste_files_copied_in_finder() {
+    let mut h = app_harness();
+    let svg = temp("pegado.svg");
+    std::fs::write(&svg, SVG_TWO_SHAPES).unwrap();
+    let png = temp("pegado.png");
+    std::fs::write(&png, png_bytes(96, 96)).unwrap();
+    let other = temp("notas.txt");
+    std::fs::write(&other, "hola").unwrap();
+    let ctx = h.ctx.clone();
+    h.state_mut().paste_content(
+        &ctx,
+        Pasted::Files(vec![svg.clone(), png.clone(), other.clone()]),
+    );
+    let a = h.state();
+    assert_eq!(
+        a.doc.shapes.len(),
+        3,
+        "dos formas del SVG y la imagen; el .txt se ignora"
+    );
+    assert_eq!(a.doc.shapes.iter().filter(|s| s.is_image()).count(), 1);
+    // Solo archivos no admitidos: aviso y nada más.
+    h.state_mut()
+        .paste_content(&ctx, Pasted::Files(vec![other]));
+    assert_eq!(h.state().doc.shapes.len(), 3);
+    assert!(
+        h.state()
+            .toast
+            .as_ref()
+            .is_some_and(|t| t.0.contains("no se pueden pegar"))
+    );
+}
+
+/// Comprobación manual (no cambia nada): qué se leería ahora del portapapeles del equipo.
+/// `cargo test -p opencraftcutter portapapeles_real -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn portapapeles_real() {
+    let what = match crate::clipboard::read_system() {
+        Some(Pasted::Svg(t)) => format!("SVG de {} caracteres", t.len()),
+        Some(Pasted::Image(b)) => format!("imagen de {} bytes", b.len()),
+        Some(Pasted::Files(f)) => format!("archivos: {f:?}"),
+        Some(Pasted::PdfOnly) => "solo PDF".into(),
+        None => "nada que pegar".into(),
+    };
+    eprintln!(
+        "portapapeles: {what} (hay contenido: {})",
+        crate::clipboard::has_system_content()
+    );
+}
+
 // ---------------------------------------------------------------- Redondear esquinas
 
 #[test]

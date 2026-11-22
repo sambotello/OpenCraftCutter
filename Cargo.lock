@@ -3068,6 +3068,8 @@ dependencies = [
  "kurbo 0.13.1",
  "log",
  "lyon",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
  "oc-core",
  "oc-cutter",
  "oc-studio3",
