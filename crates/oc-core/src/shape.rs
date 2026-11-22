@@ -292,6 +292,7 @@ impl Subpath {
                     h_in: h.h_in.map(f),
                     h_out: h.h_out.map(f),
                     smooth: h.smooth,
+                    symmetric: h.symmetric,
                 }
             })
             .collect();
@@ -508,6 +509,7 @@ impl Shape {
                                 h_in: n.h_in.map(norm),
                                 h_out: n.h_out.map(norm),
                                 smooth: n.smooth,
+                                symmetric: n.symmetric,
                             })
                             .collect()
                     }),

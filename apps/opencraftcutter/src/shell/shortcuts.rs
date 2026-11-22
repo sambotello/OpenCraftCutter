@@ -125,6 +125,7 @@ impl OpenCraftCutterApp {
                 (cmd_shift, Key::E, Cmd::ReleaseCompound),
                 (cmd_shift, Key::W, Cmd::Bool(oc_core::ops::BoolOp::Weld)),
                 (cmd_shift, Key::F, Cmd::FillPage),
+                (cmd_shift, Key::J, Cmd::JoinPaths),
                 (cmd, Key::G, Cmd::Group),
                 (cmd, Key::E, Cmd::MakeCompound),
                 (cmd, Key::J, Cmd::Simplify),
@@ -160,6 +161,11 @@ impl OpenCraftCutterApp {
             return;
         }
         if consume(cmd, Key::A) {
+            // En Editar puntos, ⌘A selecciona todos los nodos del trazo.
+            if self.tool == Tool::EditPoints && self.canvas.point_edit.is_some() {
+                self.point_select_all();
+                return;
+            }
             self.doc.select_all();
             return;
         }
@@ -212,7 +218,8 @@ impl OpenCraftCutterApp {
         if consume(cmd, Key::Num2) {
             return viewport_actions::zoom_to_selection(self);
         }
-        // Flechas: mover selección 1 mm (10 con Shift)
+        // Flechas: mover selección 1 mm (10 con Shift; en Editar puntos, 0,1 con Alt)
+        let alt = ctx.input(|i| i.modifiers.alt);
         let (shift, arrows) = ctx.input(|i| {
             let a = [
                 Key::ArrowLeft,
@@ -224,7 +231,14 @@ impl OpenCraftCutterApp {
             (i.modifiers.shift, a)
         });
         if arrows.iter().any(|a| *a) && !self.doc.selected.is_empty() {
-            let step = if shift { 10.0 } else { 1.0 };
+            let editing = self.tool == Tool::EditPoints && self.canvas.point_edit.is_some();
+            let step = if shift {
+                10.0
+            } else if alt && editing {
+                0.1
+            } else {
+                1.0
+            };
             let dx = if arrows[0] {
                 -step
             } else if arrows[1] {
@@ -239,6 +253,11 @@ impl OpenCraftCutterApp {
             } else {
                 0.0
             };
+            // En Editar puntos las flechas mueven los nodos seleccionados, nunca la forma.
+            if editing {
+                self.point_nudge(kurbo::Vec2::new(dx, dy));
+                return;
+            }
             self.commit();
             let ids = self.doc.selected.clone();
             for id in ids {
@@ -256,7 +275,10 @@ impl OpenCraftCutterApp {
             } else if self.canvas.polygon.is_some() {
                 self.canvas.polygon = None;
             } else if self.canvas.point_edit.is_some() {
-                self.canvas.point_edit = None;
+                // Primero suelta los nodos; un segundo Esc sale de la edición del trazo.
+                if !self.point_deselect() {
+                    self.canvas.point_edit = None;
+                }
             } else {
                 self.doc.selected.clear();
             }

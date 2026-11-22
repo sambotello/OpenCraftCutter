@@ -166,6 +166,7 @@ fn ellipse_nodes(r: Rect) -> NodePath {
         h_in: Some(p - d),
         h_out: Some(p + d),
         smooth: true,
+        symmetric: false,
     };
     closed(vec![
         node(Point::new(c.x + rx, c.y), kurbo::Vec2::new(0.0, ky)),
@@ -191,6 +192,7 @@ fn rect_nodes(r: Rect, radius: f64) -> NodePath {
         h_in: hi.map(|(dx, dy)| Point::new(x + dx, y + dy)),
         h_out: ho.map(|(dx, dy)| Point::new(x + dx, y + dy)),
         smooth: false,
+        symmetric: false,
     };
     closed(vec![
         n(r.x0 + rad, r.y0, Some((-k, 0.0)), None),
@@ -1120,6 +1122,7 @@ mod sample {
                             h_in: None,
                             h_out: Some(Point::new(110.0, 180.0)),
                             smooth: false,
+                            symmetric: false,
                         },
                         Node::line(Point::new(90.0, 220.0)),
                         Node::line(Point::new(20.0, 220.0)),

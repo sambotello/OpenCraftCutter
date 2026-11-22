@@ -1145,6 +1145,7 @@ impl ttf_parser::OutlineBuilder for NodeOutline {
             h_in: Some(p + (q - p) * (2.0 / 3.0)),
             h_out: None,
             smooth: false,
+            symmetric: false,
         });
     }
 
@@ -1157,6 +1158,7 @@ impl ttf_parser::OutlineBuilder for NodeOutline {
             h_in: Some(c2),
             h_out: None,
             smooth: false,
+            symmetric: false,
         });
     }
 

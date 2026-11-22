@@ -13,6 +13,8 @@ const FRAME_COLOR: Color32 = Color32::from_gray(0x3c);
 const HANDLE_BORDER: Color32 = Color32::from_gray(0x70);
 const ROTATE_COLOR: Color32 = Color32::from_rgb(0x1c, 0xe0, 0x1c);
 pub const VERTEX_PX: f32 = 6.0;
+/// Guías del ajuste en Editar puntos.
+const SNAP_GUIDE: Color32 = Color32::from_rgb(0xff, 0x3d, 0xb4);
 pub const ROTATE_OFFSET_PX: f32 = 32.0;
 /// Separación (px de pantalla) entre el objeto y el marco de selección, como en la referencia.
 pub const FRAME_PAD_PX: f32 = 8.0;
@@ -141,7 +143,10 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
             ));
         }
     }
-    if app.canvas.editing_text.is_none() {
+    // En Editar puntos no hay marco: sus asas no hacen nada en ese modo y, sobre una línea,
+    // tapan los nodos y se confunden con ellos.
+    let editing_points = app.tool == crate::app::Tool::EditPoints;
+    if app.canvas.editing_text.is_none() && !editing_points {
         if let Some(frame) = selection_frame(app) {
             let rot = rotation_about(frame.rect.center(), frame.rotation);
             let r = frame.rect;
@@ -414,12 +419,8 @@ fn draw_point_edit(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
             // Extremos de un trazo abierto: círculos (rojo el inicio), como la referencia.
             let is_end = !np.closed && (ni == 0 || ni + 1 == n);
             if selected {
-                let handles = if primary {
-                    [node.h_in, node.h_out]
-                } else {
-                    [None, None]
-                };
-                for h in handles.into_iter().flatten() {
+                // Manejadores de todos los nodos seleccionados (se pueden arrastrar todos).
+                for h in [node.h_in, node.h_out].into_iter().flatten() {
                     let hp = vp.to_screen(h);
                     painter.line_segment([p, hp], Stroke::new(1.0, Color32::from_gray(0x70)));
                     painter.rect(
@@ -430,21 +431,21 @@ fn draw_point_edit(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
                         StrokeKind::Inside,
                     );
                 }
+                // El principal (el de los campos X e Y y el tramo resaltado) lleva borde más grueso.
                 painter.rect(
                     ERect::from_center_size(p, egui::vec2(VERTEX_PX, VERTEX_PX)),
                     1.0,
                     Color32::WHITE,
-                    Stroke::new(1.2, Color32::from_gray(0x30)),
+                    Stroke::new(if primary { 1.6 } else { 1.0 }, Color32::from_gray(0x30)),
                     StrokeKind::Inside,
                 );
-            } else if is_end && ni == 0 {
-                painter.circle_filled(p, VERTEX_PX * 0.6, red);
             } else if is_end {
+                // Con borde oscuro los dos: el inicio rojo no se pierde sobre una línea roja.
                 painter.circle(
                     p,
-                    VERTEX_PX * 0.6,
-                    Color32::WHITE,
-                    Stroke::new(1.0, Color32::from_gray(0x30)),
+                    VERTEX_PX * 0.75,
+                    if ni == 0 { red } else { Color32::WHITE },
+                    Stroke::new(1.2, Color32::from_gray(0x30)),
                 );
             } else {
                 painter.rect_filled(
@@ -454,5 +455,45 @@ fn draw_point_edit(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
                 );
             }
         }
+    }
+    // Lo que hay bajo el puntero (sin gesto en curso): anillo en el nodo o el manejador, y el
+    // punto donde un clic añadiría un nodo.
+    if app.canvas.drag.is_none() {
+        use super::point_edit::Hit;
+        let hover = app.canvas.cursor_mm.map(|c| vp.to_screen(c));
+        let at = match hover.and_then(|pos| super::point_edit::hit(app, pos)) {
+            Some(Hit::Node(si, ni)) => paths.get(si).and_then(|np| np.nodes.get(ni)).map(|n| n.p),
+            Some(Hit::Handle(si, ni, out)) => paths
+                .get(si)
+                .and_then(|np| np.nodes.get(ni))
+                .and_then(|n| if out { n.h_out } else { n.h_in }),
+            Some(Hit::Segment(si, seg, t)) => paths.get(si).map(|np| match np.segment(seg) {
+                (_, Some(c), _) => kurbo::ParamCurve::eval(&c, t),
+                (a, None, b) => a.lerp(b, t),
+            }),
+            None => None,
+        };
+        if let Some(at) = at {
+            painter.circle_stroke(
+                vp.to_screen(at),
+                VERTEX_PX * 0.5 + 3.5,
+                Stroke::new(1.5, theme::SELECTION),
+            );
+        }
+    }
+    // Guías del ajuste: del punto con el que se alinea al nodo que se arrastra (y un poco más).
+    for (target, at) in &app.canvas.snap_guides {
+        let (a, b) = (vp.to_screen(*target), vp.to_screen(*at));
+        let d = b - a;
+        let ext = if d.length() > 0.5 {
+            d.normalized() * 14.0
+        } else {
+            egui::Vec2::ZERO
+        };
+        painter.line_segment([a - ext, b + ext], Stroke::new(1.0, SNAP_GUIDE));
+        let x = egui::vec2(3.0, 3.0);
+        let y = egui::vec2(3.0, -3.0);
+        painter.line_segment([a - x, a + x], Stroke::new(1.0, SNAP_GUIDE));
+        painter.line_segment([a - y, a + y], Stroke::new(1.0, SNAP_GUIDE));
     }
 }

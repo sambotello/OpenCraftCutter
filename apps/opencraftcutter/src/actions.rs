@@ -470,6 +470,7 @@ fn editable_text(s: &oc_core::Shape) -> Option<oc_studio3::text_write::TextRun> 
                                 h_in: n.h_in.map(|h| place(h, g.x_mm)),
                                 h_out: n.h_out.map(|h| place(h, g.x_mm)),
                                 smooth: n.smooth,
+                                symmetric: n.symmetric,
                             })
                             .collect(),
                         closed: np.closed,

@@ -500,6 +500,246 @@ fn anchors(a: &crate::app::OpenCraftCutterApp) -> Vec<kurbo::Point> {
         .collect()
 }
 
+/// Índice del nodo que está en (x, y).
+fn node_at(a: &crate::app::OpenCraftCutterApp, x: f64, y: f64) -> usize {
+    anchors(a)
+        .iter()
+        .position(|p| p.distance(kurbo::Point::new(x, y)) < 1e-6)
+        .unwrap_or_else(|| panic!("no hay nodo en ({x}, {y}): {:?}", anchors(a)))
+}
+
+#[test]
+fn edit_points_snap_to_other_nodes() {
+    // Sin ajuste, el nodo queda donde se suelta.
+    let mut h = edit_square();
+    drag_mm(&mut h, (80.0, 80.0), (100.0, 41.0), egui::Modifiers::NONE);
+    let free = anchors(h.state());
+    assert!(
+        free.iter().any(|p| (p.y - 41.0).abs() < 0.5 && p.x > 95.0),
+        "{free:?}"
+    );
+    // Con ajuste, se alinea en horizontal con los nodos de arriba (y = 40 exactos).
+    let mut h = edit_square();
+    h.state_mut().doc.page.smart_snap = true;
+    drag_mm(&mut h, (80.0, 80.0), (100.0, 41.0), egui::Modifiers::NONE);
+    let snapped = anchors(h.state());
+    assert!(
+        snapped.iter().any(|p| p.y == 40.0 && p.x > 95.0),
+        "{snapped:?}"
+    );
+    assert!(
+        h.state().canvas.snap_guides.is_empty(),
+        "las guías desaparecen al soltar"
+    );
+    // Con ⌘ pulsada no se ajusta.
+    let mut h = edit_square();
+    h.state_mut().doc.page.smart_snap = true;
+    drag_mm(
+        &mut h,
+        (80.0, 80.0),
+        (100.0, 41.0),
+        egui::Modifiers::COMMAND,
+    );
+    let held = anchors(h.state());
+    assert!(
+        held.iter().any(|p| (p.y - 41.0).abs() < 0.5 && p.x > 95.0),
+        "{held:?}"
+    );
+}
+
+#[test]
+fn edit_points_snap_to_grid() {
+    let mut h = edit_square();
+    {
+        let page = &mut h.state_mut().doc.page;
+        page.snap_to_grid = true;
+        page.grid_spacing_mm = 10.0;
+        page.grid_divisions = 1;
+    }
+    drag_mm(&mut h, (80.0, 80.0), (97.0, 92.0), egui::Modifiers::NONE);
+    let p = anchors(h.state());
+    assert!(
+        p.contains(&kurbo::Point::new(100.0, 90.0)),
+        "cae en la retícula: {p:?}"
+    );
+}
+
+#[test]
+fn edit_points_shift_constrains_the_drag() {
+    let mut h = edit_square();
+    drag_mm(&mut h, (80.0, 80.0), (100.0, 84.0), egui::Modifiers::SHIFT);
+    let p = anchors(h.state());
+    assert!(
+        p.iter().any(|q| q.y == 80.0 && (q.x - 100.0).abs() < 1.0),
+        "solo se mueve en horizontal: {p:?}"
+    );
+}
+
+#[test]
+fn edit_points_dragging_one_of_many_moves_them_all() {
+    let mut h = edit_square();
+    let (a, b) = (
+        node_at(h.state(), 80.0, 40.0),
+        node_at(h.state(), 80.0, 80.0),
+    );
+    h.state_mut().point_select(0, a, false);
+    h.state_mut().point_select(0, b, true);
+    drag_mm(&mut h, (80.0, 80.0), (90.0, 85.0), egui::Modifiers::NONE);
+    let p = anchors(h.state());
+    assert!(
+        (p[a].x - 90.0).abs() < 0.5 && (p[a].y - 45.0).abs() < 0.5,
+        "{p:?}"
+    );
+    assert!(
+        (p[b].x - 90.0).abs() < 0.5 && (p[b].y - 85.0).abs() < 0.5,
+        "{p:?}"
+    );
+    // Un solo paso de deshacer devuelve los dos a su sitio.
+    h.state_mut().undo();
+    assert_eq!(anchors(h.state())[b], kurbo::Point::new(80.0, 80.0));
+}
+
+#[test]
+fn edit_points_keyboard() {
+    use egui::{Key, Modifiers};
+    let mut h = edit_square();
+    // ⌘A selecciona todos los nodos (no todas las formas) y las flechas los mueven.
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run_steps(2);
+    assert_eq!(h.state().selected_nodes().len(), 4);
+    h.key_press(Key::ArrowRight);
+    h.run_steps(2);
+    let b = bounds(&h.state().doc.shapes[0]);
+    assert!(
+        (b.x0 - 41.0).abs() < 1e-6 && (b.x1 - 81.0).abs() < 1e-6,
+        "{b:?}"
+    );
+    // Con un solo nodo, la flecha deforma el trazo: solo se mueve ese.
+    let n = node_at(h.state(), 81.0, 80.0);
+    h.state_mut().point_deselect();
+    h.state_mut().point_select(0, n, false);
+    h.key_press_modifiers(Modifiers::SHIFT, Key::ArrowDown);
+    h.run_steps(2);
+    let b = bounds(&h.state().doc.shapes[0]);
+    assert!(
+        (b.y1 - 90.0).abs() < 1e-6 && (b.y0 - 40.0).abs() < 1e-6,
+        "{b:?}"
+    );
+    // Esc suelta primero los nodos y después sale de la edición.
+    h.key_press(Key::Escape);
+    h.run_steps(2);
+    assert!(h.state().selected_nodes().is_empty() && h.state().canvas.point_edit.is_some());
+    h.key_press(Key::Escape);
+    h.run_steps(2);
+    assert!(h.state().canvas.point_edit.is_none());
+}
+
+#[test]
+fn edit_points_panel_aligns_and_distributes() {
+    let mut h = edit_square();
+    // Deforma el cuadrado: la esquina (80, 80) pasa a (95, 70).
+    let n = node_at(h.state(), 80.0, 80.0);
+    h.state_mut().point_select(0, n, false);
+    h.state_mut().point_nudge(kurbo::Vec2::new(15.0, -10.0));
+    let top = node_at(h.state(), 80.0, 40.0);
+    h.state_mut().point_select(0, top, true);
+    h.run_steps(2);
+    click(&mut h, "Alinear puntos a la izquierda");
+    let p = anchors(h.state());
+    assert!(p[n].x == 80.0 && p[top].x == 80.0, "{p:?}");
+    assert_eq!(p[n].y, 70.0, "alinear en x no toca la y");
+    // Distribuir: tres nodos a intervalos iguales en vertical.
+    let third = node_at(h.state(), 40.0, 80.0);
+    h.state_mut().point_select(0, third, true);
+    h.run_steps(2);
+    click(&mut h, "Distribuir puntos verticalmente");
+    let p = anchors(h.state());
+    assert!((p[n].y - 60.0).abs() < 1e-9, "{p:?}");
+    // Una sola entrada de historial por acción.
+    h.state_mut().undo();
+    assert_eq!(anchors(h.state())[n].y, 70.0);
+}
+
+#[test]
+fn edit_points_node_and_path_tools() {
+    let mut h = edit_square();
+    let a = h.state_mut();
+    // Simétrico: los dos manejadores miden lo mismo.
+    a.point_select(0, 1, false);
+    a.point_set_symmetric();
+    let n = a.doc.shapes[0].world_node_paths()[0].nodes[1];
+    assert!(n.symmetric && n.smooth);
+    let (hi, ho) = (n.h_in.unwrap(), n.h_out.unwrap());
+    assert!((hi.distance(n.p) - ho.distance(n.p)).abs() < 1e-6);
+    // Se guarda con el documento.
+    let json = serde_json::to_string(&a.doc).unwrap();
+    let back: oc_core::Document = serde_json::from_str(&json).unwrap();
+    assert!(back.shapes[0].world_node_paths()[0].nodes[1].symmetric);
+    a.undo();
+    // Punto medio en los tramos entre nodos seleccionados; los nuevos quedan seleccionados.
+    a.point_select(0, 0, false);
+    a.point_select(0, 1, true);
+    a.point_select(0, 2, true);
+    a.point_midpoints();
+    assert_eq!(anchors(a).len(), 6);
+    assert_eq!(a.selected_nodes(), vec![(0, 1), (0, 3)]);
+    a.undo();
+    assert_eq!(anchors(a).len(), 4);
+    // Convertir en curva los dos tramos seleccionados a la vez.
+    a.point_select(0, 0, false);
+    a.point_select(0, 1, true);
+    a.point_select(0, 2, true);
+    a.point_segment_kind(true);
+    let np = a.doc.shapes[0].world_node_paths()[0].clone();
+    assert!(np.segment(0).1.is_some() && np.segment(1).1.is_some() && np.segment(2).1.is_none());
+    a.undo();
+    // Invertir el sentido conserva la forma; romper y cerrar vuelve a un trazado cerrado.
+    let before = bounds(&a.doc.shapes[0]);
+    a.point_select(0, 1, false);
+    a.point_reverse();
+    assert_eq!(bounds(&a.doc.shapes[0]), before);
+    a.point_select(0, 2, false);
+    a.point_break();
+    assert!(!a.doc.shapes[0].world_node_paths()[0].closed);
+    a.point_select(0, 1, false);
+    assert!(a.can_close());
+    a.point_close();
+    let np = a.doc.shapes[0].world_node_paths()[0].clone();
+    assert!(np.closed && np.nodes.len() == 4, "{np:?}");
+    assert!(!a.can_close());
+}
+
+#[test]
+fn edit_points_join_the_two_selected_ends() {
+    let mut a = app();
+    let p = |x: f64, y: f64| kurbo::Point::new(x, y);
+    let paths = vec![
+        oc_core::nodes::NodePath::from_points(&[p(0.0, 0.0), p(10.0, 0.0)], false),
+        oc_core::nodes::NodePath::from_points(&[p(11.0, 0.0), p(20.0, 0.0)], false),
+        oc_core::nodes::NodePath::from_points(&[p(10.0, 30.0), p(40.0, 30.0)], false),
+    ];
+    let mut s = rect(0.0, RED);
+    s.set_world_node_paths(&paths);
+    let id = a.doc.add_shape(s);
+    crate::canvas::point_edit::begin(&mut a, id);
+    // Con un extremo, se une al más cercano (el segundo trazado)…
+    a.point_select(0, 1, false);
+    assert!(a.can_join());
+    // …y con dos extremos elegidos, justo a esos dos.
+    a.point_select(2, 0, true);
+    assert!(a.can_join());
+    a.point_join();
+    let out = a.doc.shapes[0].world_node_paths();
+    assert_eq!(out.len(), 2);
+    let joined = out.iter().find(|np| np.nodes.len() == 3).expect("unido");
+    assert_eq!(joined.nodes[1].p, p(10.0, 15.0));
+    // Dos nodos que no son extremos libres no se pueden unir.
+    a.point_deselect();
+    a.point_select(0, 1, false);
+    a.point_select(1, 0, true);
+    assert!(!a.can_join());
+}
+
 #[test]
 fn edit_points_undo_drops_nodes_that_no_longer_exist() {
     use egui::{Key, Modifiers};
@@ -513,8 +753,15 @@ fn edit_points_undo_drops_nodes_that_no_longer_exist() {
     h.run_steps(3);
     assert!(h.state().selected_nodes().is_empty());
     assert_eq!(anchors(h.state()).len(), 4);
-    // Al rehacer y volver a deshacer tampoco queda seleccionado un nodo que no existe.
-    for mods in [Modifiers::COMMAND | Modifiers::SHIFT, Modifiers::COMMAND] {
+    // Lo mismo con varios nodos nuevos seleccionados, y al rehacer y volver a deshacer.
+    h.state_mut().point_select_all();
+    h.state_mut().point_midpoints();
+    h.run_steps(2);
+    for mods in [
+        Modifiers::COMMAND,
+        Modifiers::COMMAND | Modifiers::SHIFT,
+        Modifiers::COMMAND,
+    ] {
         h.key_press_modifiers(mods, Key::Z);
         h.run_steps(3);
     }
@@ -2004,4 +2251,221 @@ fn single_line_font_sends_open_strokes() {
         paths.iter().all(|(_, closed)| !closed),
         "solo trazos abiertos"
     );
+}
+
+#[test]
+fn two_drawn_lines_join_into_one_path() {
+    // Dos líneas sueltas son dos formas: se reúnen en un trazado compuesto y, en Editar
+    // puntos, se unen sus dos extremos seleccionados.
+    let mut h = app_harness();
+    {
+        let a = h.state_mut();
+        a.doc.add_shape(line((20.0, 20.0), (60.0, 40.0)));
+        a.doc.add_shape(line((61.0, 41.0), (90.0, 20.0)));
+        select_all(a);
+        assert!(a.object_enabled(Cmd::MakeCompound));
+        a.object_run(Cmd::MakeCompound);
+        assert_eq!(a.doc.shapes.len(), 1);
+        a.tool = crate::app::Tool::EditPoints;
+    }
+    h.run_steps(3);
+    let a = h.state_mut();
+    assert!(a.canvas.point_edit.is_some(), "entra a editar el compuesto");
+    let paths = a.doc.shapes[0].world_node_paths();
+    assert_eq!(paths.len(), 2);
+    let end = |x: f64| {
+        paths
+            .iter()
+            .enumerate()
+            .find_map(|(si, np)| {
+                np.nodes
+                    .iter()
+                    .position(|n| (n.p.x - x).abs() < 1e-6)
+                    .map(|ni| (si, ni))
+            })
+            .expect("extremo")
+    };
+    let (e1, e2) = (end(60.0), end(61.0));
+    a.point_select(e1.0, e1.1, false);
+    a.point_select(e2.0, e2.1, true);
+    assert!(a.can_join());
+    a.point_join();
+    let out = a.doc.shapes[0].world_node_paths();
+    assert_eq!(out.len(), 1, "queda un solo trazado");
+    assert_eq!(out[0].nodes.len(), 3);
+    assert!(!out[0].closed);
+    assert!(out[0].nodes[1].p.distance(kurbo::Point::new(60.5, 40.5)) < 1e-9);
+}
+
+#[test]
+fn object_menu_joins_the_selected_lines() {
+    let mut a = app();
+    // Una sola línea: no hay nada que unir.
+    a.doc.add_shape(line((20.0, 20.0), (60.0, 40.0)));
+    select_all(&mut a);
+    assert!(!a.object_enabled(Cmd::JoinPaths));
+    // Segunda línea que empieza donde acaba la primera, y una tercera separada.
+    a.doc.add_shape(line((60.0, 40.0), (90.0, 20.0)));
+    let mut far = line((95.0, 20.0), (120.0, 30.0));
+    far.stroke.color = BLUE;
+    a.doc.add_shape(far);
+    select_all(&mut a);
+    assert!(a.object_enabled(Cmd::JoinPaths));
+    a.object_run(Cmd::JoinPaths);
+    assert_eq!(a.doc.shapes.len(), 1, "queda una sola forma");
+    assert_eq!(a.doc.selected, vec![a.doc.shapes[0].id]);
+    assert_eq!(
+        a.doc.shapes[0].stroke.color, RED,
+        "con el estilo de la primera"
+    );
+    let paths = a.doc.shapes[0].world_node_paths();
+    assert_eq!(paths.len(), 1);
+    let xs: Vec<f64> = paths[0].nodes.iter().map(|n| n.p.x.round()).collect();
+    // Los extremos que coinciden se funden; los separados se conectan sin moverse.
+    assert_eq!(xs, vec![20.0, 60.0, 90.0, 95.0, 120.0]);
+    assert!(!paths[0].closed);
+    // Un solo deshacer devuelve las tres líneas.
+    a.undo();
+    assert_eq!(a.doc.shapes.len(), 3);
+}
+
+// ---------------------------------------------------------------- Redondear esquinas
+
+#[test]
+fn edit_points_round_a_corner_and_adjust_the_radius() {
+    let mut h = edit_square();
+    let a = h.state_mut();
+    let n = node_at(a, 80.0, 80.0);
+    assert!(
+        !a.can_fillet(),
+        "sin nodos seleccionados no hay nada que redondear"
+    );
+    a.point_select(0, n, false);
+    assert!(a.can_fillet());
+    assert_eq!(a.fillet_radius(), 0.0);
+    a.point_fillet(5.0);
+    assert_eq!(anchors(a).len(), 5, "la esquina pasa a ser dos nodos");
+    assert_eq!(a.fillet_radius(), 5.0);
+    assert_eq!(
+        a.selected_nodes().len(),
+        2,
+        "quedan seleccionados los dos nodos del arco"
+    );
+    let p = anchors(a);
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
+    );
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(75.0, 80.0)) < 1e-6)
+    );
+    // Cambiar el radio ajusta el mismo redondeo (no redondea lo ya redondeado).
+    a.point_fillet(10.0);
+    let p = anchors(a);
+    assert_eq!(p.len(), 5);
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(80.0, 70.0)) < 1e-6)
+    );
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(70.0, 80.0)) < 1e-6)
+    );
+    // Radio 0: vuelve la esquina en punta.
+    a.point_fillet(0.0);
+    assert_eq!(anchors(a).len(), 4);
+    assert!(anchors(a).contains(&kurbo::Point::new(80.0, 80.0)));
+    a.point_fillet(4.0);
+    assert_eq!(anchors(a).len(), 5);
+    // Todo el ajuste es una sola entrada de historial.
+    a.undo();
+    assert_eq!(anchors(a).len(), 4);
+    assert!(anchors(a).contains(&kurbo::Point::new(80.0, 80.0)));
+    assert_eq!(
+        a.fillet_radius(),
+        0.0,
+        "tras deshacer ya no hay redondeo en curso"
+    );
+    // Otra edición cierra el ajuste: el siguiente radio redondea desde lo que hay.
+    a.redo();
+    assert_eq!(a.fillet_radius(), 4.0);
+    a.point_nudge(kurbo::Vec2::new(1.0, 0.0));
+    assert_eq!(a.fillet_radius(), 0.0);
+}
+
+#[test]
+fn edit_points_round_all_corners_from_the_panel() {
+    let mut h = edit_square();
+    h.state_mut().point_select_all();
+    h.run_steps(3);
+    // Escribir el radio en el campo del panel (en cm, la unidad de la página).
+    let field = h.get_by_label("Radio de redondeo");
+    field.click();
+    h.run_steps(2);
+    h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+    h.run_steps(1);
+    h.get_by_label("Radio de redondeo").type_text("0.5");
+    h.run_steps(1);
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    let a = h.state();
+    assert_eq!(anchors(a).len(), 8, "cuatro esquinas, ocho nodos");
+    assert!((a.fillet_radius() - 5.0).abs() < 1e-6);
+    let b = bounds(&a.doc.shapes[0]);
+    assert!((b.width() - 40.0).abs() < 1e-6 && (b.height() - 40.0).abs() < 1e-6);
+}
+
+#[test]
+fn edit_points_round_one_corner_and_then_another() {
+    let mut h = edit_square();
+    let a = h.state_mut();
+    // Primera esquina.
+    let n = node_at(a, 80.0, 80.0);
+    a.point_select(0, n, false);
+    a.point_fillet(5.0);
+    assert_eq!(anchors(a).len(), 5);
+    // Se selecciona otra esquina: el radio es para ella y empieza en 0.
+    let m = node_at(a, 40.0, 40.0);
+    a.point_select(0, m, false);
+    assert!(a.can_fillet());
+    assert_eq!(a.fillet_radius(), 0.0);
+    a.point_fillet(8.0);
+    let p = anchors(a);
+    assert_eq!(p.len(), 6, "dos esquinas redondeadas");
+    // La segunda, con su radio…
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(48.0, 40.0)) < 1e-6)
+    );
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(40.0, 48.0)) < 1e-6)
+    );
+    // …y la primera sigue con el suyo.
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
+    );
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(75.0, 80.0)) < 1e-6)
+    );
+    // Ajustar ahora el radio solo cambia la segunda.
+    a.point_fillet(3.0);
+    let p = anchors(a);
+    assert_eq!(p.len(), 6);
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(43.0, 40.0)) < 1e-6)
+    );
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
+    );
+    // Cada esquina es su propio paso de deshacer.
+    a.undo();
+    assert_eq!(anchors(a).len(), 5);
+    a.undo();
+    assert_eq!(anchors(a).len(), 4);
 }
