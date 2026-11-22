@@ -73,6 +73,7 @@ fn handle_at(app: &OpenCraftCutterApp, pos: egui::Pos2) -> Option<Option<Handle>
     }
     handles
         .into_iter()
+        .filter(|(h, _)| super::overlay::handle_usable(&frame, &app.canvas.viewport, *h))
         .find(|(_, hp)| (hp.x - pos.x).abs() <= r && (hp.y - pos.y).abs() <= r)
         .map(|(h, _)| Some(h))
 }

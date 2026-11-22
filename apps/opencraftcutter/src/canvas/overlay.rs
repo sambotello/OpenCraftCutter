@@ -78,6 +78,29 @@ pub fn selection_frame(app: &OpenCraftCutterApp) -> Option<SelectionFrame> {
     }
 }
 
+/// ¿Sirve el asa `h` en este marco? En un marco sin alto (una línea horizontal, o casi: menos
+/// de 3 px en pantalla) solo valen las de los extremos izquierdo y derecho; sin ancho, las de
+/// arriba y abajo. Las demás caerían sobre la propia línea: al ir a moverla se agarrarían y
+/// escalarían una medida que vale 0.
+pub fn handle_usable(frame: &SelectionFrame, vp: &Viewport, h: Handle) -> bool {
+    const FLAT_PX: f64 = 3.0;
+    const LONG_PX: f64 = 20.0;
+    let (w, ht) = (
+        frame.rect.width() * vp.scale,
+        frame.rect.height() * vp.scale,
+    );
+    let flat_w = frame.rect.width() <= 0.0 || (w < FLAT_PX && ht >= LONG_PX);
+    let flat_h = frame.rect.height() <= 0.0 || (ht < FLAT_PX && w >= LONG_PX);
+    let horizontal = h.west() || h.east();
+    let vertical = h.north() || h.south();
+    match (flat_w, flat_h) {
+        (false, false) => true,
+        (false, true) => horizontal && !vertical,
+        (true, false) => vertical && !horizontal,
+        (true, true) => false,
+    }
+}
+
 /// Posición en pantalla de cada asa (y del asa de rotación) del marco.
 pub fn handle_positions(frame: &SelectionFrame, vp: &Viewport) -> (Vec<(Handle, Pos2)>, Pos2) {
     let rot = rotation_about(frame.rect.center(), frame.rotation);
@@ -161,7 +184,10 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
                     Stroke::new(1.0, Color32::BLACK),
                 );
             }
-            for (_, p) in &handles {
+            for (_, p) in handles
+                .iter()
+                .filter(|(h, _)| handle_usable(&frame, &vp, *h))
+            {
                 painter.rect(
                     ERect::from_center_size(*p, egui::vec2(HANDLE_PX, HANDLE_PX)),
                     0.0,
