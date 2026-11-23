@@ -324,10 +324,13 @@
   <p>En la segunda pestaña del panel, o en el menú <span class="ui">Ver</span>:</p>
   <ul>
     <li><span class="ui">Mostrar retícula</span> y <span class="ui">Ajustar a retícula</span>: cuadrícula cuadrada o isométrica, con <span class="ui">Espaciado</span> y <span class="ui">Divisiones</span>.</li>
-    <li><span class="ui">Habilitar ajuste inteligente</span>: al mover, los objetos se alinean solos con los bordes y centros de la página y de otros objetos, con una <span class="ui">Tolerancia</span> configurable. Una guía rosa muestra con qué borde o centro se ha alineado.</li>
+    <li><span class="ui">Habilitar ajuste inteligente</span>: al mover, los objetos se alinean solos con los bordes y centros de la página y de otros objetos, con una <span class="ui">Tolerancia</span> configurable. Una guía rosa muestra con qué borde o centro se ha alineado. Lo mismo al dibujar: los puntos de la línea, el polígono, la pluma, el rectángulo y la elipse se ajustan a los nodos, bordes y centros de lo que ya hay, y la guía se ve antes de hacer clic (<kbd>⌘</kbd> lo desactiva mientras la mantienes).</li>
     <li><span class="ui">Mostrar bordes de corte</span> <kbd>⇧⌘L</kbd> (la línea roja) y <span class="ui">Mostrar bordes de impresión</span> <kbd>⇧⌘P</kbd> (el margen de tu impresora, para Imprimir y cortar).</li>
   </ul>
   <div class="truco"><p>Las unidades (cm, mm o pulgadas), el espaciado de retícula y el margen de corte por defecto de los documentos nuevos se cambian en <a href="#preferencias">Preferencias</a>.</p></div>
+  <h3>Guías de regla</h3>
+  <p>Arrastra desde la regla superior para sacar una guía horizontal, o desde la regla izquierda para una vertical, y suéltala sobre el lienzo. Con el ajuste inteligente activo, lo que dibujas y lo que mueves se pega a ellas. Con la herramienta Seleccionar puedes moverlas arrastrándolas (en un sitio donde no haya una forma) y borrarlas devolviéndolas a la regla. <span class="ui">Ver → Mostrar guías</span> las oculta sin borrarlas y <span class="ui">Borrar las guías</span> las quita todas. Se guardan con el documento.</p>
+
 </section>
 
 <!-- ============================ 4 DIBUJAR ============================ -->
@@ -345,7 +348,7 @@
     <tr><td><span class="ui">Rectángulo</span> <kbd>R</kbd></td><td>Arrastra en diagonal. Con <kbd>⇧</kbd>, cuadrado.</td></tr>
     <tr><td><span class="ui">Elipse</span> <kbd>E</kbd></td><td>Arrastra en diagonal. Con <kbd>⇧</kbd>, círculo.</td></tr>
     <tr><td><span class="ui">Polígono</span> <kbd>G</kbd></td><td>Un clic por vértice; doble clic cierra la forma.</td></tr>
-    <tr><td><span class="ui">Pluma</span> <kbd>B</kbd></td><td>Trazados con curvas, punto a punto: un clic pone una esquina; arrastrar al poner el punto le saca manejadores y curva el tramo. Un clic sobre el primer punto cierra la forma; <kbd>⏎</kbd>, <kbd>Esc</kbd> o un doble clic la terminan abierta; <kbd>⌫</kbd> quita el último punto; <kbd>⇧</kbd> mantiene el tramo en horizontal, vertical o diagonal.</td></tr>
+    <tr><td><span class="ui">Pluma</span> <kbd>B</kbd></td><td>Trazados con curvas, punto a punto: un clic pone una esquina; arrastrar al poner el punto le saca manejadores y curva el tramo. Un clic sobre el primer punto cierra la forma; <kbd>⏎</kbd>, <kbd>Esc</kbd> o un doble clic la terminan abierta; <kbd>⌫</kbd> quita el último punto; <kbd>⇧</kbd> mantiene el tramo en horizontal, vertical o diagonal. Si empiezas haciendo clic sobre el extremo de un trazado abierto, lo continúas en vez de empezar otro.</td></tr>
     <tr><td><span class="ui">Mano alzada</span> <kbd>P</kbd></td><td>Dibuja arrastrando, como con un lápiz.</td></tr>
     <tr><td><span class="ui">Texto</span> <kbd>T</kbd></td><td>Clic en el lienzo y escribe. Ver <a href="#texto">Texto</a>.</td></tr>
     <tr><td><span class="ui">Borrador</span></td><td>Arrastra sobre las formas para borrar esa franja. El grosor se ajusta en Preferencias.</td></tr>
@@ -420,7 +423,7 @@
   </ul>
 
   <h3>Redondear esquinas</h3>
-  <p>Selecciona uno o varios puntos en esquina y sube el <span class="ui">Radio</span> de la sección <span class="ui">Redondear esquina</span>: la punta se corta y se dibuja como un arco tangente a los dos tramos. El radio queda guardado en la esquina, que sigue siendo un solo punto en el vértice: puedes volver cuando quieras y cambiarlo, cada esquina tiene el suyo, y con 0 vuelve la punta. Sirve entre rectas, entre curvas y entre una recta y una curva; si no cabe en los tramos se usa el mayor radio posible, y al cambiar el tamaño de la forma el radio no cambia. <span class="ui">Convertir el redondeo en puntos</span> sustituye la esquina por los dos extremos del arco, para retocar la curva a mano.</p>
+  <p>Selecciona uno o varios puntos en esquina y sube el <span class="ui">Radio</span> de la sección <span class="ui">Redondear esquina</span>: la punta se corta y se dibuja como un arco tangente a los dos tramos. El radio queda guardado en la esquina, que sigue siendo un solo punto en el vértice: puedes volver cuando quieras y cambiarlo, cada esquina tiene el suyo, y con 0 vuelve la punta. Sirve entre rectas, entre curvas y entre una recta y una curva; si no cabe en los tramos se usa el mayor radio posible. Al cambiar el tamaño de la forma, el redondeo se escala con ella: lo que ves y lo que mide (W y H) es exactamente lo que se corta. <span class="ui">Convertir el redondeo en puntos</span> sustituye la esquina por los dos extremos del arco, para retocar la curva a mano.</p>
 
   <h3>Alinear y distribuir puntos</h3>
   <p>Con dos o más nodos seleccionados, la sección <span class="ui">Alinear puntos</span> los pone a la misma altura o en la misma vertical (izquierda, centro, derecha, arriba, medio, abajo). Con tres o más, <span class="ui">Distribuir</span> los reparte a intervalos iguales entre los dos de los extremos. Los manejadores se mueven con su nodo, así que las curvas conservan su forma.</p>
@@ -664,7 +667,7 @@
   <h3 id="recuperacion">Copia automática y recuperación</h3>
   <p>Cada 2 minutos, si hay cambios sin guardar, OpenCraftCutter guarda una copia de seguridad del documento en <code>~/Library/Application Support/OpenCraftCutter</code>. Si el programa se cierra inesperadamente, usa <span class="ui">Archivo → Abre un archivo recuperado…</span>.</p>
   <p>El historial de <span class="ui">Deshacer</span> <kbd>⌘Z</kbd> / <span class="ui">Rehacer</span> <kbd>⇧⌘Z</kbd> cubre todos los cambios del documento.</p>
-  <p>Si un cálculo falla con alguna forma (por ejemplo, con medidas no válidas), OpenCraftCutter avisa y sigue abierto en lugar de cerrarse. Cada fallo queda anotado, con fecha y detalles, en <code>~/Library/Application Support/OpenCraftCutter/errores.log</code>: adjunta ese archivo si informas de un problema.</p>
+  <p>Si un cálculo falla con alguna forma (por ejemplo, con medidas no válidas), OpenCraftCutter avisa y sigue abierto en lugar de cerrarse. Cada fallo queda anotado, con fecha y detalles, en un registro de errores: <span class="ui">Archivo → Mostrar el registro de errores</span> te lo enseña en el Finder (<code>errores.log</code>). Adjunta ese archivo si informas de un problema. Cuando ocurre, además se guarda al momento una copia de recuperación.</p>
 </section>
 
 <!-- ============================ 13 BIBLIOTECA ============================ -->
@@ -762,6 +765,7 @@
 
   <h3 id="simular">Tiempo estimado y simulación</h3>
   <p>Junto a <span class="ui">Trabajos</span> aparece el <strong>tiempo estimado</strong> del corte (aproximado). <span class="ui">Simular corte</span> anima la cuchilla sobre la vista previa en el orden real de envío: lo cortado en negro, los desplazamientos en vacío en gris. Cambia la velocidad con <span class="ui">×1</span>, <span class="ui">×5</span> o <span class="ui">×20</span> y termina con <span class="ui">Parar</span>.</p>
+  <p><span class="ui">Sentido</span> marca en la vista previa dónde empieza cada trazo (un punto con su número de orden) y hacia dónde corta (flechas). Para cambiar el sentido de un trazado, usa <span class="ui">Invertir sentido</span> en Editar puntos.</p>
 
   <h3 id="opciones">Opciones de envío (engranaje)</h3>
   <ul>
