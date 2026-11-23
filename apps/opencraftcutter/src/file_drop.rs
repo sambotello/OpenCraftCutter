@@ -23,6 +23,7 @@ pub fn supported(p: &Path) -> bool {
         || e == "studio3"
         || e == "svg"
         || e == "svgz"
+        || e == "pdf"
         || IMAGE_EXT.contains(&e.as_str())
 }
 
@@ -158,6 +159,8 @@ impl OpenCraftCutterApp {
         let e = ext(path);
         if e == "svg" || e == "svgz" {
             self.import_svg_path(ctx, path);
+        } else if e == "pdf" {
+            self.import_pdf_path(ctx, path);
         } else if e == "studio3" {
             self.import_studio3_path(ctx, path);
         } else {

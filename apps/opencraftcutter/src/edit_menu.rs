@@ -150,11 +150,25 @@ impl OpenCraftCutterApp {
                 let center = self.canvas.viewport.to_world(self.canvas.stage.center());
                 self.add_files_at(ctx, &ok, center);
             }
-            Pasted::PdfOnly => self.notify(
-                ctx,
-                "El portapapeles trae los vectores solo como PDF, que aún no se puede pegar. \
-                 Cópialos como SVG desde el programa de origen.",
-            ),
+            Pasted::Pdf { pdf, image } => {
+                // Vectores del PDF; si no trae ninguno (por ejemplo, es una foto envuelta en
+                // un PDF), la imagen que venía con él.
+                match oc_svg::pdf_to_svg(&pdf) {
+                    Ok(svg)
+                        if oc_svg::import_svg(&svg, self.defaults.stroke)
+                            .is_ok_and(|r| !r.shapes.is_empty()) =>
+                    {
+                        self.import_svg_text(ctx, &svg, "el portapapeles");
+                    }
+                    _ => match image {
+                        Some(bytes) => self.add_image_bytes(ctx, "Imagen pegada", &bytes),
+                        None => self.notify(
+                            ctx,
+                            "El PDF del portapapeles no contiene trazados que se puedan pegar.",
+                        ),
+                    },
+                }
+            }
         }
     }
 

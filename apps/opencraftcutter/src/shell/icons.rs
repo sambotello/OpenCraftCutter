@@ -27,6 +27,7 @@ pub const LINE: MaterialIcon = mi::ICON_HORIZONTAL_RULE;
 pub const RECT: MaterialIcon = mi::ICON_CROP_SQUARE;
 pub const ELLIPSE: MaterialIcon = mi::ICON_RADIO_BUTTON_UNCHECKED;
 pub const POLYGON: MaterialIcon = mi::ICON_PENTAGON;
+pub const PEN: MaterialIcon = mi::ICON_INK_PEN;
 pub const FREEHAND: MaterialIcon = mi::ICON_DRAW;
 pub const TEXT: MaterialIcon = mi::ICON_TITLE;
 pub const NOTE: MaterialIcon = mi::ICON_STICKY_NOTE_2;

@@ -53,6 +53,15 @@ impl OpenCraftCutterApp {
                 _ => {}
             }
         }
+        // Pluma: Intro o Esc terminan el trazado (se conserva); ⌫ quita el último punto.
+        if self.canvas.pen.is_some() && !egui::Popup::is_any_open(ctx) {
+            if consume(Modifiers::NONE, Key::Enter) || consume(Modifiers::NONE, Key::Escape) {
+                return crate::canvas::finish_pen(self, false);
+            }
+            if consume(Modifiers::NONE, Key::Backspace) || consume(Modifiers::NONE, Key::Delete) {
+                return crate::canvas::pen_remove_last(self);
+            }
+        }
         if consume(cmd, Key::K) {
             self.show_prefs = !self.show_prefs;
             return;
@@ -300,6 +309,7 @@ impl OpenCraftCutterApp {
             (Key::R, Tool::Rect),
             (Key::E, Tool::Ellipse),
             (Key::G, Tool::Polygon),
+            (Key::B, Tool::Pen),
             (Key::P, Tool::Freehand),
             (Key::T, Tool::Text),
             (Key::H, Tool::Pan),

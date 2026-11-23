@@ -228,6 +228,18 @@ impl OpenCraftCutterApp {
         self.import_svg_text(ctx, &text, &stem(path));
     }
 
+    /// Importa los vectores de la primera página de un PDF.
+    pub fn import_pdf_path(&mut self, ctx: &egui::Context, path: &Path) {
+        let bytes = match std::fs::read(path) {
+            Ok(b) => b,
+            Err(e) => return self.show_error(ctx, format!("No se pudo leer el archivo: {e}")),
+        };
+        match oc_svg::pdf_to_svg(&bytes) {
+            Ok(svg) => self.import_svg_text(ctx, &svg, &stem(path)),
+            Err(e) => self.show_error(ctx, format!("No se pudo importar el PDF: {e}.")),
+        }
+    }
+
     /// Añade al documento las formas de un SVG (de un archivo o del portapapeles) y las deja
     /// seleccionadas. `source` es el nombre que se cita en el aviso.
     pub fn import_svg_text(&mut self, ctx: &egui::Context, text: &str, source: &str) {
@@ -483,6 +495,7 @@ fn editable_text(s: &oc_core::Shape) -> Option<oc_studio3::text_write::TextRun> 
                                 h_out: n.h_out.map(|h| place(h, g.x_mm)),
                                 smooth: n.smooth,
                                 symmetric: n.symmetric,
+                                radius: n.radius,
                             })
                             .collect(),
                         closed: np.closed,

@@ -23,6 +23,14 @@ pub struct Handles {
     /// Suave y además con los dos manejadores de la misma longitud.
     #[serde(default, skip_serializing_if = "is_false")]
     pub symmetric: bool,
+    /// Radio de redondeo de la esquina, en mm (0 = esquina viva). No se normaliza con la caja:
+    /// al escalar la forma el radio se conserva.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub radius: f64,
+}
+
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
 }
 
 fn is_false(b: &bool) -> bool {
@@ -37,6 +45,9 @@ pub struct Node {
     pub smooth: bool,
     /// Simétrico: suave y con los dos manejadores de la misma longitud.
     pub symmetric: bool,
+    /// Radio de redondeo de la esquina, en mm (0 = esquina viva). El nodo sigue en el vértice;
+    /// el arco aparece al resolver el trazado ([`NodePath::resolved`]).
+    pub radius: f64,
 }
 
 impl Node {
@@ -47,6 +58,7 @@ impl Node {
             h_out: None,
             smooth: false,
             symmetric: false,
+            radius: 0.0,
         }
     }
 
@@ -62,6 +74,7 @@ impl Node {
             h_out: self.h_out.map(&f),
             smooth: self.smooth,
             symmetric: self.symmetric,
+            radius: self.radius,
         }
     }
 }
@@ -85,6 +98,31 @@ impl NodePath {
             nodes: self.nodes.iter().map(|n| n.map(f)).collect(),
             closed: self.closed,
         }
+    }
+
+    /// ¿Tiene alguna esquina con radio de redondeo?
+    pub fn has_rounding(&self) -> bool {
+        self.nodes.iter().any(|n| n.radius > 0.0)
+    }
+
+    /// El trazado tal como se dibuja y se corta: cada esquina con radio sustituida por su arco.
+    /// Los nodos del resultado ya no llevan radio.
+    pub fn resolved(&self) -> NodePath {
+        if !self.has_rounding() {
+            return self.clone();
+        }
+        let corners: Vec<(usize, f64)> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.radius > 0.0)
+            .map(|(i, n)| (i, n.radius))
+            .collect();
+        let mut out = fillet_corners_each(self, &corners).0;
+        for n in &mut out.nodes {
+            n.radius = 0.0;
+        }
+        out
     }
 
     /// Número de tramos.
@@ -193,6 +231,7 @@ impl NodePath {
                     h_out: Some(r.p1),
                     smooth: true,
                     symmetric: false,
+                    radius: 0.0,
                 };
                 self.nodes.insert(i + 1, node);
             }
@@ -454,6 +493,7 @@ pub fn from_bez(path: &BezPath) -> Vec<NodePath> {
                         h_out: None,
                         smooth: false,
                         symmetric: false,
+                        radius: 0.0,
                     });
                 }
             }
@@ -466,6 +506,7 @@ pub fn from_bez(path: &BezPath) -> Vec<NodePath> {
                         h_out: None,
                         smooth: false,
                         symmetric: false,
+                        radius: 0.0,
                     });
                 }
             }
@@ -506,6 +547,7 @@ pub fn ellipse(r: kurbo::Rect) -> NodePath {
                 h_out: Some(*p + *t * k),
                 smooth: true,
                 symmetric: false,
+                radius: 0.0,
             })
             .collect(),
         closed: true,
@@ -544,6 +586,7 @@ fn fuse(a: &Node, b: &Node) -> Node {
         h_out: b.h_out.map(|h| h + (p - b.p)),
         smooth: false,
         symmetric: false,
+        radius: 0.0,
     }
 }
 
@@ -657,25 +700,29 @@ fn corner_turn(np: &NodePath, i: usize) -> Option<(usize, usize, f64)> {
 /// dos tramos de cada esquina (cada esquina pasa a ser dos nodos unidos por una curva). Si el
 /// radio no cabe en los tramos, se usa el mayor que cabe. Devuelve el trazado y los nodos nuevos.
 pub fn fillet_corners(np: &NodePath, corners: &[usize], radius: f64) -> (NodePath, Vec<usize>) {
+    let each: Vec<(usize, f64)> = corners.iter().map(|i| (*i, radius)).collect();
+    fillet_corners_each(np, &each)
+}
+
+/// Como [`fillet_corners`], con un radio por esquina: (nodo, radio).
+pub fn fillet_corners_each(np: &NodePath, corners: &[(usize, f64)]) -> (NodePath, Vec<usize>) {
     use kurbo::ParamCurveArclen;
     let mut out = np.clone();
     let mut added: Vec<usize> = Vec::new();
-    if radius <= 0.0 {
-        return (out, added);
-    }
     let n = np.nodes.len();
-    let mut list: Vec<usize> = corners
+    let mut each: Vec<(usize, f64)> = corners
         .iter()
         .copied()
-        .filter(|i| is_corner(np, *i))
+        .filter(|(i, r)| *r > 0.0 && is_corner(np, *i))
         .collect();
-    list.sort_unstable();
-    list.dedup();
+    each.sort_by_key(|c| c.0);
+    each.dedup_by_key(|c| c.0);
+    let list: Vec<usize> = each.iter().map(|c| c.0).collect();
     // Recorte de cada esquina (distancia del vértice a los puntos de tangencia), calculado
     // sobre el trazado original para que no dependa del orden.
-    let trims: Vec<(usize, f64, f64)> = list
+    let trims: Vec<(usize, f64, f64)> = each
         .iter()
-        .filter_map(|&i| {
+        .filter_map(|&(i, radius)| {
             let (seg_in, seg_out, turn) = corner_turn(np, i)?;
             let share = |other: usize| {
                 if list.contains(&other) {
@@ -723,6 +770,7 @@ pub fn fillet_corners(np: &NodePath, corners: &[usize], radius: f64) -> (NodePat
             h_out: Some(p1 + toward(p1, a_in) * k),
             smooth: true,
             symmetric: false,
+            radius: 0.0,
         };
         let b = Node {
             p: p2,
@@ -730,6 +778,7 @@ pub fn fillet_corners(np: &NodePath, corners: &[usize], radius: f64) -> (NodePat
             h_out: b_out,
             smooth: true,
             symmetric: false,
+            radius: 0.0,
         };
         out.nodes[prev].h_out = prev_out;
         out.nodes[next].h_in = next_in;
@@ -1291,6 +1340,45 @@ mod tests {
         assert_eq!(f.nodes[3].p, p.nodes[2].p);
         let tail = f.segment(2).1.expect("curva");
         assert!(p.nearest_segment(tail.eval(0.5)).unwrap().2 < 1e-3);
+    }
+
+    #[test]
+    fn stored_radius_is_resolved_into_arcs() {
+        let mut s = square();
+        assert!(!s.has_rounding());
+        assert_eq!(s.resolved(), s, "sin radios, el trazado es el mismo");
+        s.nodes[1].radius = 2.0;
+        s.nodes[3].radius = 3.0;
+        assert!(s.has_rounding());
+        let r = s.resolved();
+        // Los nodos siguen siendo cuatro; lo que se dibuja tiene seis, sin radios.
+        assert_eq!(s.nodes.len(), 4);
+        assert_eq!(r.nodes.len(), 6);
+        assert!(r.nodes.iter().all(|n| n.radius == 0.0));
+        assert!(
+            r.nodes
+                .iter()
+                .any(|n| n.p.distance(Point::new(8.0, 0.0)) < 1e-9)
+        );
+        assert!(
+            r.nodes
+                .iter()
+                .any(|n| n.p.distance(Point::new(0.0, 7.0)) < 1e-9)
+        );
+        // Cada esquina con su radio.
+        let (each, _) = fillet_corners_each(&square(), &[(1, 2.0), (3, 3.0)]);
+        assert_eq!(each, r);
+        // Un radio en un nodo que no es esquina no hace nada.
+        let mut e = ellipse(kurbo::Rect::new(0.0, 0.0, 20.0, 10.0));
+        e.nodes[0].radius = 4.0;
+        assert_eq!(e.resolved().nodes.len(), 4);
+        // El radio viaja con su nodo al invertir o insertar.
+        let mut t = square();
+        t.nodes[1].radius = 2.0;
+        t.insert_at(0, 0.5);
+        assert_eq!(t.nodes[2].radius, 2.0);
+        t.reverse();
+        assert_eq!(t.nodes.iter().filter(|n| n.radius == 2.0).count(), 1);
     }
 
     #[test]

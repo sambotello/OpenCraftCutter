@@ -2634,10 +2634,76 @@ fn paste_an_image_from_the_clipboard() {
     // Datos que no son una imagen: no se añade nada.
     a.paste_content(&ctx, Pasted::Image(b"esto no es una imagen".to_vec()));
     assert_eq!(a.doc.shapes.len(), 1);
-    // Vectores solo en PDF: se avisa y no se añade nada.
-    a.paste_content(&ctx, Pasted::PdfOnly);
-    assert_eq!(a.doc.shapes.len(), 1);
+}
+
+/// PDF de una página con un rectángulo de 60 × 30 mm con línea de 1 pt.
+fn pdf_with_a_rect() -> Vec<u8> {
+    let mut doc = oc_core::Document::default();
+    let mut s = rect(20.0, RED);
+    s.rect = Rect::new(20.0, 40.0, 80.0, 70.0);
+    s.stroke.width_pt = 1.0;
+    doc.add_shape(s);
+    oc_svg::print_pdf(&doc).expect("PDF")
+}
+
+#[test]
+fn paste_vectors_copied_as_pdf() {
+    // Lo que copian por defecto los programas vectoriales: PDF (a veces con una vista previa).
+    let mut a = app();
+    let ctx = egui::Context::default();
+    a.paste_content(
+        &ctx,
+        Pasted::Pdf {
+            pdf: pdf_with_a_rect(),
+            image: Some(png_bytes(64, 64)),
+        },
+    );
+    assert!(!a.doc.shapes.is_empty());
+    assert!(
+        a.doc.shapes.iter().all(|s| !s.is_image()),
+        "entran los trazados, no la vista previa"
+    );
+    assert!(
+        a.doc
+            .shapes
+            .iter()
+            .any(|s| (s.rect.width() - 60.0).abs() < 0.5 && (s.rect.height() - 30.0).abs() < 0.5),
+        "a tamaño real"
+    );
+    assert_eq!(a.doc.selected.len(), a.doc.shapes.len());
+    let n = a.doc.shapes.len();
+    // Un PDF que no se puede leer: se pega la imagen que venía con él…
+    a.paste_content(
+        &ctx,
+        Pasted::Pdf {
+            pdf: b"no es un PDF".to_vec(),
+            image: Some(png_bytes(64, 64)),
+        },
+    );
+    assert_eq!(a.doc.shapes.len(), n + 1);
+    assert!(a.doc.shapes.last().unwrap().is_image());
+    // …y si no venía ninguna, se avisa y no se añade nada.
+    a.paste_content(
+        &ctx,
+        Pasted::Pdf {
+            pdf: b"no es un PDF".to_vec(),
+            image: None,
+        },
+    );
+    assert_eq!(a.doc.shapes.len(), n + 1);
     assert!(a.toast.as_ref().is_some_and(|t| t.0.contains("PDF")));
+}
+
+#[test]
+fn pdf_files_can_be_dropped_or_pasted() {
+    let mut h = app_harness();
+    let pdf = temp("vectores.pdf");
+    std::fs::write(&pdf, pdf_with_a_rect()).unwrap();
+    assert!(crate::file_drop::supported(&pdf));
+    let ctx = h.ctx.clone();
+    h.state_mut().paste_content(&ctx, Pasted::Files(vec![pdf]));
+    let a = h.state();
+    assert!(!a.doc.shapes.is_empty() && a.doc.shapes.iter().all(|s| !s.is_image()));
 }
 
 #[test]
@@ -2702,7 +2768,11 @@ fn portapapeles_real() {
         Some(Pasted::Svg(t)) => format!("SVG de {} caracteres", t.len()),
         Some(Pasted::Image(b)) => format!("imagen de {} bytes", b.len()),
         Some(Pasted::Files(f)) => format!("archivos: {f:?}"),
-        Some(Pasted::PdfOnly) => "solo PDF".into(),
+        Some(Pasted::Pdf { pdf, image }) => format!(
+            "PDF de {} bytes{}",
+            pdf.len(),
+            if image.is_some() { " (con imagen)" } else { "" }
+        ),
         None => "nada que pegar".into(),
     };
     eprintln!(
@@ -2712,6 +2782,11 @@ fn portapapeles_real() {
 }
 
 // ---------------------------------------------------------------- Redondear esquinas
+
+/// Nodos tal como se editan (una esquina redondeada es un nodo con radio).
+fn edit_nodes_of(a: &crate::app::OpenCraftCutterApp) -> Vec<oc_core::nodes::Node> {
+    a.doc.shapes[0].world_edit_paths()[0].nodes.clone()
+}
 
 #[test]
 fn edit_points_round_a_corner_and_adjust_the_radius() {
@@ -2725,15 +2800,18 @@ fn edit_points_round_a_corner_and_adjust_the_radius() {
     a.point_select(0, n, false);
     assert!(a.can_fillet());
     assert_eq!(a.fillet_radius(), 0.0);
-    a.point_fillet(5.0);
-    assert_eq!(anchors(a).len(), 5, "la esquina pasa a ser dos nodos");
+    a.point_fillet(5.0, true);
+    // El nodo sigue siendo uno, en el vértice y seleccionado; lo que se corta es el arco.
+    assert_eq!(edit_nodes_of(a).len(), 4);
+    assert_eq!(edit_nodes_of(a)[n].p, kurbo::Point::new(80.0, 80.0));
+    assert_eq!(a.selected_nodes(), vec![(0, n)]);
     assert_eq!(a.fillet_radius(), 5.0);
-    assert_eq!(
-        a.selected_nodes().len(),
-        2,
-        "quedan seleccionados los dos nodos del arco"
-    );
     let p = anchors(a);
+    assert_eq!(
+        p.len(),
+        5,
+        "al cortar, la esquina son los dos extremos del arco"
+    );
     assert!(
         p.iter()
             .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
@@ -2742,38 +2820,56 @@ fn edit_points_round_a_corner_and_adjust_the_radius() {
         p.iter()
             .any(|q| q.distance(kurbo::Point::new(75.0, 80.0)) < 1e-6)
     );
-    // Cambiar el radio ajusta el mismo redondeo (no redondea lo ya redondeado).
-    a.point_fillet(10.0);
+    // Cambiar el radio mientras se arrastra el valor no añade entradas de historial.
+    a.point_fillet(10.0, false);
     let p = anchors(a);
-    assert_eq!(p.len(), 5);
     assert!(
         p.iter()
             .any(|q| q.distance(kurbo::Point::new(80.0, 70.0)) < 1e-6)
     );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(70.0, 80.0)) < 1e-6)
-    );
-    // Radio 0: vuelve la esquina en punta.
-    a.point_fillet(0.0);
-    assert_eq!(anchors(a).len(), 4);
-    assert!(anchors(a).contains(&kurbo::Point::new(80.0, 80.0)));
-    a.point_fillet(4.0);
-    assert_eq!(anchors(a).len(), 5);
-    // Todo el ajuste es una sola entrada de historial.
     a.undo();
-    assert_eq!(anchors(a).len(), 4);
-    assert!(anchors(a).contains(&kurbo::Point::new(80.0, 80.0)));
-    assert_eq!(
-        a.fillet_radius(),
-        0.0,
-        "tras deshacer ya no hay redondeo en curso"
-    );
-    // Otra edición cierra el ajuste: el siguiente radio redondea desde lo que hay.
+    assert_eq!(anchors(a).len(), 4, "un solo deshacer quita todo el ajuste");
     a.redo();
-    assert_eq!(a.fillet_radius(), 4.0);
-    a.point_nudge(kurbo::Vec2::new(1.0, 0.0));
+    assert_eq!(a.fillet_radius(), 10.0);
+    // Radio 0: vuelve la esquina en punta.
+    a.point_fillet(0.0, true);
+    assert_eq!(anchors(a).len(), 4);
     assert_eq!(a.fillet_radius(), 0.0);
+}
+
+#[test]
+fn edit_points_radius_can_be_changed_later() {
+    // El radio queda guardado en la esquina: tras otras ediciones se puede seguir ajustando.
+    let mut h = edit_square();
+    let a = h.state_mut();
+    let n = node_at(a, 80.0, 80.0);
+    let m = node_at(a, 40.0, 40.0);
+    a.point_select(0, n, false);
+    a.point_fillet(5.0, true);
+    // Otra esquina con otro radio, y un nodo movido.
+    a.point_select(0, m, false);
+    assert_eq!(a.fillet_radius(), 0.0, "cada esquina muestra su radio");
+    a.point_fillet(8.0, true);
+    a.point_nudge(kurbo::Vec2::new(-2.0, 0.0));
+    // Se vuelve a la primera: conserva su radio y se puede cambiar.
+    a.point_select(0, n, false);
+    assert_eq!(a.fillet_radius(), 5.0);
+    a.point_fillet(12.0, true);
+    let nodes = edit_nodes_of(a);
+    assert_eq!(nodes.len(), 4);
+    assert_eq!((nodes[n].radius, nodes[m].radius), (12.0, 8.0));
+    // Sale de Editar puntos, se mueve la forma y se guarda: el radio sigue ahí.
+    a.tool = crate::app::Tool::Select;
+    let json = a.doc.to_json();
+    let doc = oc_core::Document::from_json(&json).unwrap();
+    assert_eq!(doc.shapes[0].world_edit_paths()[0].nodes[n].radius, 12.0);
+    // Las dos seleccionadas: el campo ajusta las dos a la vez.
+    a.tool = crate::app::Tool::EditPoints;
+    a.point_select(0, n, false);
+    a.point_select(0, m, true);
+    a.point_fillet(3.0, true);
+    let nodes = edit_nodes_of(a);
+    assert_eq!((nodes[n].radius, nodes[m].radius), (3.0, 3.0));
 }
 
 #[test]
@@ -2792,64 +2888,21 @@ fn edit_points_round_all_corners_from_the_panel() {
     h.key_press(egui::Key::Enter);
     h.run_steps(3);
     let a = h.state();
-    assert_eq!(anchors(a).len(), 8, "cuatro esquinas, ocho nodos");
-    assert!((a.fillet_radius() - 5.0).abs() < 1e-6);
+    assert_eq!(edit_nodes_of(a).len(), 4, "siguen siendo cuatro nodos");
+    assert!(
+        edit_nodes_of(a)
+            .iter()
+            .all(|n| (n.radius - 5.0).abs() < 1e-6)
+    );
+    assert_eq!(anchors(a).len(), 8, "al cortar, cuatro arcos");
     let b = bounds(&a.doc.shapes[0]);
     assert!((b.width() - 40.0).abs() < 1e-6 && (b.height() - 40.0).abs() < 1e-6);
-}
-
-#[test]
-fn edit_points_round_one_corner_and_then_another() {
-    let mut h = edit_square();
-    let a = h.state_mut();
-    // Primera esquina.
-    let n = node_at(a, 80.0, 80.0);
-    a.point_select(0, n, false);
-    a.point_fillet(5.0);
-    assert_eq!(anchors(a).len(), 5);
-    // Se selecciona otra esquina: el radio es para ella y empieza en 0.
-    let m = node_at(a, 40.0, 40.0);
-    a.point_select(0, m, false);
-    assert!(a.can_fillet());
-    assert_eq!(a.fillet_radius(), 0.0);
-    a.point_fillet(8.0);
-    let p = anchors(a);
-    assert_eq!(p.len(), 6, "dos esquinas redondeadas");
-    // La segunda, con su radio…
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(48.0, 40.0)) < 1e-6)
-    );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(40.0, 48.0)) < 1e-6)
-    );
-    // …y la primera sigue con el suyo.
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
-    );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(75.0, 80.0)) < 1e-6)
-    );
-    // Ajustar ahora el radio solo cambia la segunda.
-    a.point_fillet(3.0);
-    let p = anchors(a);
-    assert_eq!(p.len(), 6);
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(43.0, 40.0)) < 1e-6)
-    );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
-    );
-    // Cada esquina es su propio paso de deshacer.
-    a.undo();
-    assert_eq!(anchors(a).len(), 5);
-    a.undo();
-    assert_eq!(anchors(a).len(), 4);
+    // «Convertir el redondeo en puntos» deja los arcos como nodos normales.
+    click(&mut h, "Convertir el redondeo en puntos");
+    let a = h.state();
+    assert_eq!(edit_nodes_of(a).len(), 8);
+    assert!(edit_nodes_of(a).iter().all(|n| n.radius == 0.0));
+    assert_eq!(a.selected_nodes().len(), 8);
 }
 
 // ---------------------------------------------------------------- Robustez
@@ -2927,4 +2980,301 @@ fn error_log_keeps_every_failure_and_rotates() {
     append_error_log(&path, &entry).unwrap();
     assert!(std::fs::metadata(&path).unwrap().len() < 10_000);
     assert!(path.with_file_name("errores.anterior.log").exists());
+}
+
+// ---------------------------------------------------------------- Renombrar en Capas
+
+#[test]
+fn layers_panel_renames_a_shape() {
+    use egui::Key;
+    let mut h = two_rects();
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    h.state_mut().doc.shapes[1].name = "Azul".into();
+    h.state_mut().panel = Some(crate::app::Panel::Layers);
+    h.run_steps(3);
+    // Desde el menú contextual de la fila.
+    h.get_by_label_contains("Azul").click_secondary();
+    h.run_steps(3);
+    click(&mut h, "Renombrar");
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.run_steps(1);
+    h.get_by_label("Nombre de la forma")
+        .type_text("Tapa de la caja");
+    h.run_steps(2);
+    h.key_press(Key::Enter);
+    h.run_steps(3);
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Tapa de la caja");
+    assert!(
+        h.query_by_label("Nombre de la forma").is_none(),
+        "el campo se cierra"
+    );
+    // Un solo deshacer devuelve el nombre.
+    h.state_mut().undo();
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Azul");
+    // Un nombre vacío no se acepta, y el mismo nombre no toca el historial.
+    let before = h.state().doc.shape(ids[0]).unwrap().name.clone();
+    h.state_mut().rename_shape(ids[0], &before);
+    h.state_mut().undo();
+    h.state_mut().redo();
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Tapa de la caja");
+}
+
+// ---------------------------------------------------------------- Seleccionar lo de debajo
+
+/// Tres formas que pasan por (60, 70): un rectángulo grande debajo y dos líneas encima.
+fn stacked() -> (AppHarness, [u64; 3]) {
+    let mut h = app_harness();
+    let mut back = rect(0.0, BLUE);
+    back.rect = Rect::new(60.0, 30.0, 160.0, 110.0);
+    back.name = "Contorno".into();
+    let mut fold = line((60.0, 70.0), (160.0, 70.0));
+    fold.name = "Doblez".into();
+    let mut side = line((60.0, 30.0), (60.0, 110.0));
+    side.name = "Lado".into();
+    let a = h.state_mut();
+    let ids = [
+        a.doc.add_shape(back),
+        a.doc.add_shape(fold),
+        a.doc.add_shape(side),
+    ];
+    a.panel = None;
+    h.run_steps(3);
+    (h, ids)
+}
+
+#[test]
+fn alt_click_selects_the_shape_below() {
+    let (mut h, [back, fold, side]) = stacked();
+    // Un clic normal toma la de arriba.
+    click_mm(&mut h, (60.0, 70.0));
+    assert_eq!(h.state().doc.selected, vec![side]);
+    // Alt + clic baja de una en una y, desde la última, vuelve arriba.
+    let alt_click = |h: &mut AppHarness| {
+        let pos = h
+            .state()
+            .canvas
+            .viewport
+            .to_screen(kurbo::Point::new(60.0, 70.0));
+        h.event(egui::Event::ModifiersChanged(egui::Modifiers::ALT));
+        h.hover_at(pos);
+        h.step();
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::ALT,
+            });
+            h.step();
+        }
+        h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+        h.run_steps(3);
+    };
+    alt_click(&mut h);
+    assert_eq!(h.state().doc.selected, vec![fold]);
+    alt_click(&mut h);
+    assert_eq!(h.state().doc.selected, vec![back]);
+    alt_click(&mut h);
+    assert_eq!(h.state().doc.selected, vec![side]);
+    assert!(
+        !h.state().history.can_undo(),
+        "seleccionar no cambia el documento"
+    );
+}
+
+#[test]
+fn context_menu_lists_the_shapes_under_the_pointer() {
+    let (mut h, [back, fold, side]) = stacked();
+    right_click_mm(&mut h, (60.0, 70.0));
+    assert_eq!(h.state().doc.selected, vec![side]);
+    click(&mut h, "Seleccionar debajo");
+    assert!(shows(&h, "✔ Lado") && shows(&h, "Doblez") && shows(&h, "Contorno"));
+    click(&mut h, "Doblez");
+    assert_eq!(h.state().doc.selected, vec![fold]);
+    // Donde solo hay una forma no se ofrece.
+    right_click_mm(&mut h, (120.0, 110.0));
+    if !shows(&h, "Duplicar") {
+        right_click_mm(&mut h, (120.0, 110.0));
+    }
+    assert_eq!(h.state().doc.selected, vec![back]);
+    assert!(shows(&h, "Duplicar") && !shows(&h, "Seleccionar debajo"));
+}
+
+// ---------------------------------------------------------------- Guías al mover formas
+
+#[test]
+fn moving_a_shape_shows_what_it_snapped_to() {
+    let mut h = two_rects();
+    h.state_mut().doc.page.smart_snap = true;
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    // Arrastre a medias: el segundo rectángulo (de y 40 a 70) baja hasta casi alinear su borde
+    // superior con el inferior del primero (y = 70).
+    let vp = h.state().canvas.viewport;
+    let from = vp.to_screen(kurbo::Point::new(135.0, 40.0));
+    let to = vp.to_screen(kurbo::Point::new(137.0, 69.3));
+    h.hover_at(from);
+    h.step();
+    h.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.step();
+    for k in 1..=8 {
+        h.hover_at(from + (to - from) * (k as f32 / 8.0));
+        h.step();
+    }
+    let a = h.state();
+    let moved = a.doc.shape(ids[1]).unwrap().rect;
+    assert_eq!(moved.y0, 70.0, "ajustado al borde del otro rectángulo");
+    // Una guía horizontal en y = 70 que cubre los dos rectángulos.
+    let guide = a
+        .canvas
+        .move_guides
+        .iter()
+        .find(|(p, q)| p.y == 70.0 && q.y == 70.0)
+        .unwrap_or_else(|| panic!("sin guía: {:?}", a.canvas.move_guides));
+    assert!(guide.0.x <= 40.0 && guide.1.x >= moved.x1, "{guide:?}");
+    // Al soltar, las guías desaparecen.
+    h.event(egui::Event::PointerButton {
+        pos: to,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(3);
+    assert!(h.state().canvas.move_guides.is_empty());
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().rect.y0, 70.0);
+}
+
+// ---------------------------------------------------------------- Pluma
+
+/// App con la Pluma elegida.
+fn pen() -> AppHarness {
+    let mut h = app_harness();
+    h.state_mut().tool = crate::app::Tool::Pen;
+    h.state_mut().panel = None;
+    h.run_steps(2);
+    h
+}
+
+#[test]
+fn pen_clicks_make_corners_and_enter_finishes() {
+    let mut h = pen();
+    for p in [(40.0, 40.0), (90.0, 40.0), (90.0, 80.0)] {
+        click_mm(&mut h, p);
+    }
+    assert_eq!(h.state().canvas.pen.as_ref().map(Vec::len), Some(3));
+    assert!(h.state().doc.shapes.is_empty(), "aún no es una forma");
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    assert_eq!(a.doc.shapes.len(), 1);
+    let np = &a.doc.shapes[0].world_node_paths()[0];
+    assert!(!np.closed && np.nodes.len() == 3);
+    assert!(np.nodes.iter().all(|n| !n.is_bezier()), "solo esquinas");
+    assert!(np.nodes[2].p.distance(kurbo::Point::new(90.0, 80.0)) < 0.5);
+    assert_eq!(a.doc.selected, vec![a.doc.shapes[0].id]);
+    // Todo el trazado es una sola entrada de historial.
+    h.state_mut().undo();
+    assert!(h.state().doc.shapes.is_empty());
+}
+
+#[test]
+fn pen_drag_makes_a_curve_and_clicking_the_start_closes() {
+    let mut h = pen();
+    click_mm(&mut h, (40.0, 60.0));
+    // Arrastrar al poner el segundo nodo saca sus manejadores.
+    drag_mm(&mut h, (80.0, 40.0), (95.0, 40.0), egui::Modifiers::NONE);
+    {
+        let n = h.state().canvas.pen.as_ref().unwrap()[1];
+        assert!(n.p.distance(kurbo::Point::new(80.0, 40.0)) < 0.5);
+        let (hi, ho) = (n.h_in.unwrap(), n.h_out.unwrap());
+        assert!(
+            (ho.x - 95.0).abs() < 0.5 && (hi.x - 65.0).abs() < 0.5,
+            "{n:?}"
+        );
+        assert!(n.smooth && n.symmetric);
+    }
+    click_mm(&mut h, (80.0, 90.0));
+    // Clic sobre el primer nodo: cierra y termina.
+    click_mm(&mut h, (40.0, 60.0));
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    let np = &a.doc.shapes[0].world_node_paths()[0];
+    assert!(np.closed && np.nodes.len() == 3, "{np:?}");
+    assert!(np.segment(0).1.is_some(), "el primer tramo es curvo");
+    assert!(np.segment(1).1.is_some() && np.segment(2).1.is_none());
+}
+
+#[test]
+fn pen_shift_backspace_and_tool_change() {
+    let mut h = pen();
+    click_mm(&mut h, (40.0, 40.0));
+    // Mayús: el tramo queda horizontal aunque el clic esté algo más abajo.
+    let pos = h
+        .state()
+        .canvas
+        .viewport
+        .to_screen(kurbo::Point::new(90.0, 43.0));
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::SHIFT));
+    h.hover_at(pos);
+    h.step();
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::SHIFT,
+        });
+        h.step();
+    }
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+    h.run_steps(2);
+    let (first, second) = {
+        let n = h.state().canvas.pen.as_ref().unwrap();
+        (n[0].p, n[1].p)
+    };
+    assert_eq!(
+        second.y, first.y,
+        "misma altura exacta que el punto anterior"
+    );
+    assert!((second.x - 90.0).abs() < 0.5, "{second:?}");
+    // ⌫ quita el último punto.
+    click_mm(&mut h, (120.0, 90.0));
+    h.key_press(egui::Key::Backspace);
+    h.run_steps(2);
+    assert_eq!(h.state().canvas.pen.as_ref().map(Vec::len), Some(2));
+    // Cambiar de herramienta termina el trazado.
+    h.state_mut().tool = crate::app::Tool::Select;
+    h.run_steps(3);
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    assert_eq!(a.doc.shapes.len(), 1);
+    assert_eq!(a.doc.shapes[0].world_node_paths()[0].nodes.len(), 2);
+    // Un solo punto no es un trazado: no se añade nada.
+    h.state_mut().tool = crate::app::Tool::Pen;
+    h.run_steps(2);
+    click_mm(&mut h, (150.0, 150.0));
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    assert_eq!(h.state().doc.shapes.len(), 1);
+    assert!(h.state().canvas.pen.is_none());
+}
+
+#[test]
+fn pen_double_click_finishes_and_context_menu_closes() {
+    let mut h = pen();
+    click_mm(&mut h, (40.0, 40.0));
+    click_mm(&mut h, (90.0, 40.0));
+    click_mm(&mut h, (90.0, 80.0));
+    right_click_mm(&mut h, (60.0, 120.0));
+    assert!(shows(&h, "Terminar sin cerrar") && shows(&h, "Quitar el último punto"));
+    click(&mut h, "Cerrar trazado");
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    let np = &a.doc.shapes[0].world_node_paths()[0];
+    assert!(np.closed && np.nodes.len() == 3);
 }

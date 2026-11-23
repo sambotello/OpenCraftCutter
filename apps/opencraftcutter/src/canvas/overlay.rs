@@ -129,6 +129,7 @@ pub fn handle_positions(frame: &SelectionFrame, vp: &Viewport) -> (Vec<(Handle, 
 pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
     let vp = app.canvas.viewport;
     draw_tool_feedback(app, painter, &vp);
+    draw_pen(app, painter, &vp);
     if let Some(poly) = &app.canvas.polygon {
         let mut pts: Vec<Pos2> = poly.iter().map(|p| vp.to_screen(*p)).collect();
         if let Some(c) = app.canvas.cursor_mm {
@@ -203,6 +204,13 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
             }
         }
     }
+    // Guías del ajuste al mover formas: el borde o centro con el que se alineó la selección.
+    for (a, b) in &app.canvas.move_guides {
+        painter.line_segment(
+            [vp.to_screen(*a), vp.to_screen(*b)],
+            Stroke::new(1.0, SNAP_GUIDE),
+        );
+    }
     if let Some(m) = app.canvas.marquee {
         let r = vp.rect_to_screen(m);
         painter.rect(
@@ -212,6 +220,73 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
             Stroke::new(1.0, theme::SELECTION),
             StrokeKind::Inside,
         );
+    }
+}
+
+/// Trazado de la Pluma en curso: lo ya dibujado, el tramo que saldría hasta el puntero, los
+/// nodos y los manejadores del último.
+fn draw_pen(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
+    let Some(nodes) = app.canvas.pen.as_ref().filter(|n| !n.is_empty()) else {
+        return;
+    };
+    let stroke = Stroke::new(1.5, theme::SELECTION);
+    let flat = |np: &oc_core::nodes::NodePath| -> Vec<Pos2> {
+        np.flatten(0.5 / vp.scale)
+            .into_iter()
+            .map(|p| vp.to_screen(p))
+            .collect()
+    };
+    let drawn = oc_core::nodes::NodePath {
+        nodes: nodes.clone(),
+        closed: false,
+    };
+    if nodes.len() >= 2 {
+        painter.add(EShape::line(flat(&drawn), stroke));
+    }
+    let last = nodes[nodes.len() - 1];
+    // Vista previa del siguiente tramo (mientras no se esté arrastrando un manejador).
+    let dragging = matches!(app.canvas.drag, Some(super::Drag::PenHandle));
+    if let Some(c) = app.canvas.cursor_mm.filter(|_| !dragging) {
+        let next = oc_core::nodes::NodePath {
+            nodes: vec![last, oc_core::nodes::Node::line(c)],
+            closed: false,
+        };
+        painter.add(EShape::dashed_line(
+            &flat(&next),
+            Stroke::new(1.0, theme::SELECTION),
+            4.0,
+            3.0,
+        ));
+    }
+    for h in [last.h_in, last.h_out].into_iter().flatten() {
+        let (a, b) = (vp.to_screen(last.p), vp.to_screen(h));
+        painter.line_segment([a, b], Stroke::new(1.0, Color32::from_gray(0x70)));
+        painter.circle(
+            b,
+            VERTEX_PX * 0.5,
+            Color32::from_rgb(0x8c, 0xa6, 0xff),
+            Stroke::new(1.0, Color32::from_rgb(0x50, 0x6c, 0xe0)),
+        );
+    }
+    for (i, n) in nodes.iter().enumerate() {
+        let p = vp.to_screen(n.p);
+        painter.rect(
+            ERect::from_center_size(p, egui::vec2(VERTEX_PX, VERTEX_PX)),
+            1.0,
+            Color32::WHITE,
+            Stroke::new(1.2, Color32::from_gray(0x30)),
+            StrokeKind::Inside,
+        );
+        // El primer nodo se resalta cuando un clic ahí cerraría el trazado.
+        let closes = i == 0
+            && nodes.len() >= 3
+            && app
+                .canvas
+                .cursor_mm
+                .is_some_and(|c| c.distance(n.p) * vp.scale < super::tools::PEN_CLOSE_PX);
+        if closes {
+            painter.circle_stroke(p, VERTEX_PX + 2.0, Stroke::new(1.5, theme::SELECTION));
+        }
     }
 }
 
@@ -407,6 +482,24 @@ fn draw_point_edit(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
                     _ => {}
                 });
                 painter.add(EShape::line(pts, Stroke::new(2.0, red)));
+            }
+        }
+    }
+    // Esquinas redondeadas: el nodo sigue en el vértice, fuera del arco; dos líneas finas lo
+    // unen a los puntos donde empieza y acaba el redondeo.
+    for np in &paths {
+        for (ni, node) in np.nodes.iter().enumerate() {
+            if node.radius <= 0.0 {
+                continue;
+            }
+            let (arc, new) = oc_core::nodes::fillet_corners_each(np, &[(ni, node.radius)]);
+            for k in new {
+                painter.add(EShape::dashed_line(
+                    &[vp.to_screen(node.p), vp.to_screen(arc.nodes[k].p)],
+                    Stroke::new(1.0, Color32::from_gray(0x80)),
+                    3.0,
+                    3.0,
+                ));
             }
         }
     }

@@ -35,7 +35,7 @@ pub fn secondary_click(app: &mut OpenCraftCutterApp, pos: egui::Pos2) {
     let at = app.canvas.viewport.to_world(pos);
     let mut target = ContextTarget { at, hit: None };
     app.canvas.drag = None;
-    if app.canvas.polygon.is_some() {
+    if app.canvas.polygon.is_some() || app.canvas.pen.is_some() {
         app.canvas.context = Some(target);
         return;
     }
@@ -78,7 +78,9 @@ pub fn show(app: &mut OpenCraftCutterApp, response: &Response) {
             at: app.canvas.cursor_mm.unwrap_or(Point::ZERO),
             hit: None,
         });
-        if app.canvas.polygon.is_some() {
+        if app.canvas.pen.is_some() {
+            pen_menu(app, ui);
+        } else if app.canvas.polygon.is_some() {
             polygon_menu(app, ui);
         } else if app.tool == Tool::EditPoints && app.canvas.point_edit.is_some() {
             points_menu(app, ui, target);
@@ -158,6 +160,44 @@ pub fn paste_at(app: &mut OpenCraftCutterApp, ctx: &egui::Context, at: Point) {
             *s = moved;
         }
     }
+}
+
+/// Submenú con todas las formas que hay bajo el punto donde se abrió el menú, de arriba abajo,
+/// para llegar a las que quedan tapadas. Solo aparece si hay más de una.
+fn shapes_under_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, at: Point) {
+    let under = super::tools::shapes_at(app, at);
+    if under.len() < 2 {
+        return;
+    }
+    let editing = (app.tool == Tool::EditPoints)
+        .then(|| app.canvas.point_edit.map(|pe| pe.shape))
+        .flatten();
+    let title = if app.tool == Tool::EditPoints {
+        "Editar otra forma de aquí"
+    } else {
+        "Seleccionar debajo"
+    };
+    ui.menu_button(title, |ui| {
+        for id in under {
+            let Some((name, kind)) = app.doc.shape(id).map(|s| (s.name.clone(), s.kind_name()))
+            else {
+                continue;
+            };
+            let current = if app.tool == Tool::EditPoints {
+                editing == Some(id)
+            } else {
+                app.doc.is_selected(id)
+            };
+            let mark = if current { "✔ " } else { "" };
+            if item(ui, &format!("{mark}{name}"), kind) {
+                if app.tool == Tool::EditPoints {
+                    point_edit::begin(app, id);
+                } else {
+                    app.doc.selected = app.doc.with_group(id);
+                }
+            }
+        }
+    });
 }
 
 /// Órdenes de organizar, alinear, voltear y rotar (comunes al lienzo y al panel Capas).
@@ -338,6 +378,7 @@ fn selection_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarg
     }
     lock_and_hide(app, ui);
     ui.separator();
+    shapes_under_menu(app, ui, target.at);
     if item(ui, "Zoom a la selección", "⌘2") {
         viewport_actions::zoom_to_selection(app);
     }
@@ -405,6 +446,24 @@ fn polygon_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     }
     if item(ui, "Cancelar", "Esc") {
         app.canvas.polygon = None;
+    }
+}
+
+/// Mientras se dibuja con la Pluma.
+fn pen_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
+    let n = app.canvas.pen.as_ref().map_or(0, Vec::len);
+    if n >= 3 && item(ui, "Cerrar trazado", "") {
+        super::finish_pen(app, true);
+    }
+    if n >= 2 && item(ui, "Terminar sin cerrar", "Intro") {
+        super::finish_pen(app, false);
+    }
+    if item(ui, "Quitar el último punto", "⌫") {
+        super::pen_remove_last(app);
+    }
+    if item(ui, "Cancelar", "") {
+        app.canvas.pen = None;
+        app.canvas.drag = None;
     }
 }
 
@@ -495,6 +554,7 @@ fn points_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarget)
         }
         ui.separator();
     }
+    shapes_under_menu(app, ui, target.at);
     if item(ui, "Seleccionar todos los puntos", "⌘A") {
         app.point_select_all();
     }

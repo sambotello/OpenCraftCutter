@@ -32,6 +32,8 @@ pub enum Tool {
     Rect,
     Ellipse,
     Polygon,
+    /// Pluma: trazados Bézier nodo a nodo.
+    Pen,
     Freehand,
     Text,
     Note,
@@ -50,6 +52,7 @@ impl Tool {
             Tool::Rect => "Rectángulo (R)",
             Tool::Ellipse => "Elipse (E)",
             Tool::Polygon => "Polígono (G): clic por vértice, doble clic cierra",
+            Tool::Pen => "Pluma (B): clic para esquinas, arrastra para curvas, Intro termina",
             Tool::Freehand => "Mano alzada (P)",
             Tool::Text => "Texto (T)",
             Tool::Note => "Nota",
@@ -543,6 +546,7 @@ impl OpenCraftCutterApp {
         self.canvas.editing_text = None;
         self.canvas.drag = None;
         self.canvas.polygon = None;
+        self.canvas.pen = None;
     }
 
     pub fn switch_tab(&mut self, i: usize) {
@@ -705,6 +709,10 @@ impl eframe::App for OpenCraftCutterApp {
         crate::shell::preferences_window(self, ui);
         // Como la referencia: al entrar en Editar puntos se abre su panel.
         if self.tool != self.last_tool {
+            // Cambiar de herramienta termina el trazado que se estaba dibujando con la Pluma.
+            if self.last_tool == Tool::Pen {
+                crate::canvas::finish_pen(self, false);
+            }
             if self.tool == Tool::EditPoints {
                 self.panel_before_edit = Some(self.panel);
                 self.panel = Some(Panel::EditPoints);

@@ -34,6 +34,10 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
         }
     });
     let shift = ui.input(|i| i.modifiers.shift);
+    // Forma cuyo nombre se está editando en la lista, con el texto en curso.
+    let rename_id = egui::Id::unique("capas_renombrar");
+    let mut renaming: Option<(u64, String)> = ui.data(|d| d.get_temp(rename_id)).flatten();
+    let was_renaming = renaming.as_ref().map(|r| r.0);
     let rows: Vec<(u64, String, &'static str, bool, bool)> = app
         .doc
         .shapes
@@ -53,9 +57,36 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
             .inner_margin(egui::Margin::symmetric(6, 2));
         frame.show(ui, |ui| {
             ui.horizontal(|ui| {
+                if let Some((_, text)) = renaming.as_mut().filter(|r| r.0 == id) {
+                    let field = ui.add(
+                        egui::TextEdit::singleline(text)
+                            .desired_width(130.0)
+                            .id(egui::Id::unique(("capas_renombrar_campo", id))),
+                    );
+                    crate::theme::name_widget(&field, "Nombre de la forma");
+                    // Recién abierto: toma el foco para escribir directamente.
+                    if was_renaming != Some(id) || !field.has_focus() && !field.lost_focus() {
+                        field.request_focus();
+                    }
+                    if field.lost_focus() {
+                        let cancelled = ui.input(|i| i.key_pressed(egui::Key::Escape));
+                        let new = text.trim().to_string();
+                        if !cancelled && !new.is_empty() && new != name {
+                            app.rename_shape(id, &new);
+                        }
+                        renaming = None;
+                    }
+                    return;
+                }
                 let label =
                     ui.add(egui::Label::new(format!("{name}  ")).sense(egui::Sense::click()));
                 ui.label(RichText::new(kind).small().color(theme::CHROME_300));
+                // Doble clic en el nombre: renombrar.
+                if label.double_clicked() {
+                    app.doc.selected = vec![id];
+                    renaming = Some((id, name.clone()));
+                    return;
+                }
                 if label.clicked() {
                     if shift {
                         app.doc.toggle_selected(id);
@@ -68,7 +99,11 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
                 if label.secondary_clicked() && !app.doc.is_selected(id) {
                     app.doc.selected = vec![id];
                 }
-                label.context_menu(|ui| row_menu(app, ui));
+                label.context_menu(|ui| {
+                    if row_menu(app, ui) {
+                        renaming = Some((id, name.clone()));
+                    }
+                });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if state_button(
                         ui,
@@ -101,6 +136,7 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
             });
         });
     }
+    ui.data_mut(|d| d.insert_temp(rename_id, renaming));
 }
 
 /// Botón de estado: activo = icono `on` en ámbar sobre fondo; inactivo = icono `off` atenuado.
@@ -131,8 +167,22 @@ fn state_button(
     .clicked()
 }
 
-/// Menú contextual de una fila: actúa sobre las formas seleccionadas.
-fn row_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
+impl OpenCraftCutterApp {
+    /// Cambia el nombre de una forma (una entrada de historial).
+    pub fn rename_shape(&mut self, id: u64, name: &str) {
+        if self.doc.shape(id).is_none_or(|s| s.name == name) {
+            return;
+        }
+        self.commit();
+        if let Some(s) = self.doc.shape_mut(id) {
+            s.name = name.to_string();
+        }
+    }
+}
+
+/// Menú contextual de una fila: actúa sobre las formas seleccionadas. Devuelve si se pidió
+/// renombrar la fila.
+fn row_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) -> bool {
     use crate::canvas::context_menu;
     ui.set_min_width(190.0);
     let ctx = ui.ctx().clone();
@@ -146,6 +196,10 @@ fn row_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
         }
         clicked
     };
+    let mut rename = false;
+    if app.doc.selected.len() == 1 && item(ui, "Renombrar", "") {
+        rename = true;
+    }
     if item(ui, "Copiar", "⌘C") {
         app.copy_selection(&ctx);
     }
@@ -166,4 +220,5 @@ fn row_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     if item(ui, "Zoom a la selección", "⌘2") {
         crate::canvas::viewport_actions::zoom_to_selection(app);
     }
+    rename
 }

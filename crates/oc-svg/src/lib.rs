@@ -1146,6 +1146,7 @@ impl ttf_parser::OutlineBuilder for NodeOutline {
             h_out: None,
             smooth: false,
             symmetric: false,
+            radius: 0.0,
         });
     }
 
@@ -1159,6 +1160,7 @@ impl ttf_parser::OutlineBuilder for NodeOutline {
             h_out: None,
             smooth: false,
             symmetric: false,
+            radius: 0.0,
         });
     }
 
@@ -1254,5 +1256,122 @@ mod glyph_tests {
             run.glyphs[0].outline.len() == 2,
             "la A tiene contorno y agujero"
         );
+    }
+}
+
+/// Convierte la primera página de un PDF en SVG (a tamaño real), para importar sus vectores.
+pub fn pdf_to_svg(bytes: &[u8]) -> Result<String, String> {
+    use hayro_svg::hayro_interpret::InterpreterSettings;
+    use hayro_svg::hayro_syntax::Pdf;
+    // La biblioteca puede entrar en pánico con PDFs dañados: no debe cerrar la app.
+    let result = std::panic::catch_unwind(|| {
+        let pdf = Pdf::new(bytes.to_vec()).map_err(|_| "no es un PDF válido".to_string())?;
+        let pages = pdf.pages();
+        let page = pages
+            .iter()
+            .next()
+            .ok_or_else(|| "el PDF no tiene páginas".to_string())?;
+        let (w, h) = page.render_dimensions();
+        let svg = hayro_svg::convert(
+            page,
+            &hayro_svg::RenderCache::new(),
+            &InterpreterSettings::default(),
+            &hayro_svg::SvgRenderSettings::default(),
+        );
+        Ok::<_, String>((svg, w as f64, h as f64))
+    });
+    let (svg, w, h) = result.map_err(|_| "no se pudo interpretar el PDF".to_string())??;
+    Ok(svg_in_points(&svg, w, h))
+}
+
+/// El SVG generado mide en puntos de PDF (1/72 de pulgada) pero sin unidad, y un importador de
+/// SVG lo leería en píxeles (1/96): se le pone el tamaño en `pt` y un `viewBox` equivalente.
+fn svg_in_points(svg: &str, w: f64, h: f64) -> String {
+    let Some(start) = svg.find("<svg") else {
+        return svg.to_string();
+    };
+    let Some(end) = svg[start..].find('>').map(|i| start + i) else {
+        return svg.to_string();
+    };
+    let tag = &svg[start..end];
+    // Se conservan los demás atributos (los espacios de nombres) y se sustituyen estos tres.
+    let mut kept = String::new();
+    for part in tag["<svg".len()..].split_whitespace() {
+        let name = part.split('=').next().unwrap_or_default();
+        if !matches!(name, "width" | "height" | "viewBox") && part.contains('=') {
+            kept.push(' ');
+            kept.push_str(part);
+        }
+    }
+    format!(
+        "{}<svg{kept} width=\"{w}pt\" height=\"{h}pt\" viewBox=\"0 0 {w} {h}\"{}",
+        &svg[..start],
+        &svg[end..]
+    )
+}
+
+/// Importa los vectores de la primera página de un PDF.
+pub fn import_pdf(bytes: &[u8], default_stroke: Stroke) -> Result<ImportResult, String> {
+    let svg = pdf_to_svg(bytes)?;
+    import_svg(&svg, default_stroke).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod pdf_tests {
+    use super::*;
+
+    /// Documento con un rectángulo de 60 × 30 mm en (20, 40), con línea de 1 pt.
+    fn doc_with_rect() -> Document {
+        let mut doc = Document::default();
+        let mut s = Shape::new(
+            0,
+            "Rectángulo",
+            kurbo::Rect::new(20.0, 40.0, 80.0, 70.0),
+            ShapeKind::Rect { corner_radius: 0.0 },
+        );
+        s.stroke.width_pt = 1.0;
+        doc.add_shape(s);
+        doc
+    }
+
+    #[test]
+    fn pdf_vectors_come_back_at_real_size() {
+        let pdf = print_pdf(&doc_with_rect()).expect("PDF");
+        let svg = pdf_to_svg(&pdf).expect("SVG");
+        assert!(
+            svg.contains("pt\""),
+            "tamaño en puntos: {}",
+            &svg[..svg.len().min(300)]
+        );
+        let r = import_pdf(&pdf, Stroke::default()).expect("importar");
+        assert!(!r.shapes.is_empty(), "el PDF trae al menos el rectángulo");
+        // Entre las formas importadas está el rectángulo, a su tamaño y en su sitio (±0,5 mm:
+        // el grosor de la línea puede contar en la caja).
+        let found = r.shapes.iter().any(|s| {
+            let b = s.rect;
+            (b.width() - 60.0).abs() < 0.5
+                && (b.height() - 30.0).abs() < 0.5
+                && (b.x0 - 20.0).abs() < 0.5
+                && (b.y0 - 40.0).abs() < 0.5
+        });
+        let boxes: Vec<_> = r.shapes.iter().map(|s| s.rect).collect();
+        assert!(found, "{boxes:?}");
+    }
+
+    #[test]
+    fn broken_pdf_is_an_error_not_a_crash() {
+        assert!(pdf_to_svg(b"esto no es un PDF").is_err());
+        assert!(pdf_to_svg(b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n").is_err());
+        assert!(import_pdf(&[], Stroke::default()).is_err());
+    }
+
+    #[test]
+    fn svg_header_is_rewritten_in_points() {
+        let out = svg_in_points(
+            r#"<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100"><g/></svg>"#,
+            200.0,
+            100.0,
+        );
+        assert!(out.starts_with(r#"<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="200pt" height="100pt" viewBox="0 0 200 100"><g/>"#), "{out}");
     }
 }

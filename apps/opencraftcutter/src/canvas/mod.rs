@@ -73,6 +73,8 @@ pub enum Drag {
         image: ShapeId,
         start: Point,
     },
+    /// Pluma: se arrastra tras poner un nodo para sacarle los manejadores.
+    PenHandle,
     /// Recuadro para seleccionar nodos en Editar puntos.
     NodeMarquee {
         start: Point,
@@ -108,23 +110,6 @@ pub enum EyedropperTarget {
     Line,
 }
 
-/// Redondeo de esquinas en curso: mientras el trazo y la selección de nodos sigan como los
-/// dejó, cambiar el radio vuelve a partir de la forma original en vez de redondear lo ya
-/// redondeado. Al seleccionar otros nodos, el radio pasa a aplicarse a esos.
-#[derive(Debug, Clone)]
-pub struct FilletSession {
-    pub shape: ShapeId,
-    /// Trazados antes de redondear.
-    pub base: Vec<oc_core::nodes::NodePath>,
-    /// Esquinas elegidas (subtrazo, nodo), en `base`.
-    pub corners: Vec<(usize, usize)>,
-    pub radius: f64,
-    /// Trazados tal como quedaron guardados tras aplicar `radius`.
-    pub result: Vec<oc_core::nodes::NodePath>,
-    /// Nodos que quedaron seleccionados (los de los arcos).
-    pub selected: Vec<(usize, usize)>,
-}
-
 /// Trazo en edición de puntos y vértice seleccionado (subtrazo, índice).
 #[derive(Debug, Clone, Copy)]
 pub struct PointEdit {
@@ -137,6 +122,8 @@ pub struct CanvasState {
     pub drag: Option<Drag>,
     pub marquee: Option<Rect>,
     pub polygon: Option<Vec<Point>>,
+    /// Trazado que se está dibujando con la Pluma.
+    pub pen: Option<Vec<oc_core::nodes::Node>>,
     pub cursor_mm: Option<Point>,
     pub editing_text: Option<ShapeId>,
     pub send: SendSettings,
@@ -176,10 +163,10 @@ pub struct CanvasState {
     pub text_outlines: std::collections::HashMap<ShapeId, crate::text::Outlines>,
     /// Guías del ajuste en curso en Editar puntos: (objetivo, punto ajustado), en mm.
     pub snap_guides: Vec<(Point, Point)>,
+    /// Guías del ajuste inteligente al mover formas: segmentos en mm.
+    pub move_guides: Vec<(Point, Point)>,
     /// Dónde se abrió el último menú contextual del lienzo.
     pub context: Option<context_menu::ContextTarget>,
-    /// Redondeo de esquinas que se está ajustando en Editar puntos.
-    pub fillet: Option<FilletSession>,
 }
 
 impl Default for CanvasState {
@@ -189,6 +176,7 @@ impl Default for CanvasState {
             drag: None,
             marquee: None,
             polygon: None,
+            pen: None,
             cursor_mm: None,
             editing_text: None,
             send: SendSettings::default(),
@@ -211,10 +199,26 @@ impl Default for CanvasState {
             eraser_width_mm: 3.0,
             text_outlines: std::collections::HashMap::new(),
             snap_guides: Vec::new(),
+            move_guides: Vec::new(),
             context: None,
-            fillet: None,
         }
     }
+}
+
+/// Termina el trazado de la Pluma y lo añade al documento (`close` = cerrado).
+pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
+    tools::finish_pen(app, close);
+}
+
+/// Quita el último punto del trazado de la Pluma (si era el único, se cancela).
+pub fn pen_remove_last(app: &mut OpenCraftCutterApp) {
+    if let Some(nodes) = app.canvas.pen.as_mut() {
+        nodes.pop();
+        if nodes.is_empty() {
+            app.canvas.pen = None;
+        }
+    }
+    app.canvas.drag = None;
 }
 
 impl CanvasState {

@@ -12,8 +12,12 @@ pub enum Pasted {
     Image(Vec<u8>),
     /// Archivos copiados en el Finder.
     Files(Vec<PathBuf>),
-    /// Vectores solo en PDF (lo que dejan algunos programas si no se les pide SVG).
-    PdfOnly,
+    /// Vectores en PDF (lo que copian por defecto muchos programas vectoriales). `image` es la
+    /// imagen que venía junto al PDF, si la había: se usa si el PDF no trae trazados.
+    Pdf {
+        pdf: Vec<u8>,
+        image: Option<Vec<u8>>,
+    },
 }
 
 /// Tipos de portapapeles con SVG, por orden de preferencia.
@@ -66,7 +70,7 @@ pub fn file_url_to_path(url: &str) -> Option<PathBuf> {
 }
 
 /// Lo que hay en el portapapeles del sistema que se puede pegar, o `None`. Preferencia: SVG
-/// (vectores) antes que archivos, y estos antes que una imagen de mapa de bits.
+/// antes que archivos, estos antes que PDF, y los vectores antes que un mapa de bits.
 #[cfg(target_os = "macos")]
 pub fn read_system() -> Option<Pasted> {
     use objc2_app_kit::NSPasteboard;
@@ -98,13 +102,11 @@ pub fn read_system() -> Option<Pasted> {
     if !files.is_empty() {
         return Some(Pasted::Files(files));
     }
-    if let Some(bytes) = IMAGE_TYPES.iter().find_map(|ty| data(ty)) {
-        return Some(Pasted::Image(bytes));
+    let image = IMAGE_TYPES.iter().find_map(|ty| data(ty));
+    if let Some(pdf) = PDF_TYPES.iter().find_map(|ty| data(ty)) {
+        return Some(Pasted::Pdf { pdf, image });
     }
-    if PDF_TYPES.iter().any(|ty| data(ty).is_some()) {
-        return Some(Pasted::PdfOnly);
-    }
-    None
+    image.map(Pasted::Image)
 }
 
 #[cfg(not(target_os = "macos"))]

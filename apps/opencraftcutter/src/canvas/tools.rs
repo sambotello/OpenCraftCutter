@@ -50,13 +50,30 @@ fn path_kind(points: &[Point], closed: bool) -> (Rect, ShapeKind) {
 
 /// Forma bajo el puntero (la de más arriba en la pila).
 pub(super) fn shape_at(app: &OpenCraftCutterApp, p: Point) -> Option<u64> {
+    shapes_at(app, p).first().copied()
+}
+
+/// Todas las formas bajo el puntero, de la de más arriba a la de más abajo.
+pub(super) fn shapes_at(app: &OpenCraftCutterApp, p: Point) -> Vec<u64> {
     let tol = 6.0 / app.canvas.viewport.scale;
     app.doc
         .shapes
         .iter()
         .rev()
-        .find(|s| hit_test(s, p, tol))
+        .filter(|s| hit_test(s, p, tol))
         .map(|s| s.id)
+        .collect()
+}
+
+/// La forma que está justo debajo de la seleccionada en el punto `p` (Alt + clic). Desde la
+/// de más abajo se vuelve a la de arriba; si la selección no está bajo el puntero, la de arriba.
+pub(super) fn shape_below_selection(app: &OpenCraftCutterApp, p: Point) -> Option<u64> {
+    let under = shapes_at(app, p);
+    let current = under.iter().rposition(|id| app.doc.is_selected(*id));
+    match current {
+        Some(i) => under.get((i + 1) % under.len()).copied(),
+        None => under.first().copied(),
+    }
 }
 
 /// Asa bajo el puntero (en px de pantalla).
@@ -89,6 +106,40 @@ pub fn finish_polygon(app: &mut OpenCraftCutterApp, close: bool) {
         let id = app.doc.add_shape(s);
         app.doc.selected = vec![id];
     }
+}
+
+/// Distancia (px) a la que un clic sobre el primer nodo cierra el trazado de la Pluma.
+pub const PEN_CLOSE_PX: f64 = 8.0;
+
+/// Termina el trazado de la Pluma: lo añade al documento como una forma y la selecciona. Con
+/// menos de dos puntos no queda nada.
+pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
+    app.canvas.drag = None;
+    let Some(mut nodes) = app.canvas.pen.take() else {
+        return;
+    };
+    // Dos clics en el mismo sitio (un doble clic para terminar) no son dos nodos.
+    nodes.dedup_by(|b, a| a.p.distance(b.p) < 1e-6);
+    let closed = close && nodes.len() >= 3;
+    if nodes.len() < 2 {
+        return;
+    }
+    if !closed {
+        // En un trazado abierto esos manejadores no dibujan nada.
+        nodes[0].h_in = None;
+        if let Some(last) = nodes.last_mut() {
+            last.h_out = None;
+        }
+    }
+    let kind = ShapeKind::Path {
+        subpaths: Vec::new(),
+        fill_rule: Default::default(),
+    };
+    let mut s = new_shape(app, "Trazo", Rect::ZERO, kind);
+    s.set_world_node_paths(&[oc_core::nodes::NodePath { nodes, closed }]);
+    app.commit();
+    let id = app.doc.add_shape(s);
+    app.doc.selected = vec![id];
 }
 
 fn create_text(app: &mut OpenCraftCutterApp, _ctx: &egui::Context, at: Point) {
@@ -180,9 +231,15 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     CursorIcon::Default
                 }
             }
-            (_, Tool::Rect | Tool::Ellipse | Tool::Line | Tool::Polygon | Tool::Freehand) => {
-                CursorIcon::Crosshair
-            }
+            (
+                _,
+                Tool::Rect
+                | Tool::Ellipse
+                | Tool::Line
+                | Tool::Polygon
+                | Tool::Pen
+                | Tool::Freehand,
+            ) => CursorIcon::Crosshair,
             _ => {
                 if let Some(pos) = hover {
                     match handle_at(app, pos) {
@@ -225,6 +282,11 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
 
     // Doble clic: cerrar polígono o editar texto.
     if response.double_clicked() {
+        // Pluma: el doble clic pone el último punto (lo hizo el primer clic) y termina.
+        if app.canvas.pen.is_some() {
+            finish_pen(app, false);
+            return;
+        }
         if tool == Tool::EditPoints {
             return;
         }
@@ -392,7 +454,10 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 }
             }
             Tool::Select | Tool::Note => {
-                match handle_at(app, pos) {
+                // Con Alt el clic es «seleccionar debajo»: no se agarran las asas, que pueden
+                // quedar justo sobre la forma que se busca.
+                let handle = if alt { None } else { handle_at(app, pos) };
+                match handle {
                     Some(None) => {
                         let originals: Vec<Shape> =
                             app.doc.selected_shapes().into_iter().cloned().collect();
@@ -437,10 +502,18 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     }
                     None => {}
                 }
-                if let Some(id) = shape_at(app, p) {
+                // Alt + clic: la forma de debajo de la seleccionada (para llegar a las tapadas).
+                let picked = if alt {
+                    shape_below_selection(app, p)
+                } else {
+                    shape_at(app, p)
+                };
+                if let Some(id) = picked {
                     // Un objeto agrupado se selecciona con todo su grupo.
                     let members = app.doc.with_group(id);
-                    if shift {
+                    if alt {
+                        app.doc.selected = members;
+                    } else if shift {
                         for m in members {
                             app.doc.toggle_selected(m);
                         }
@@ -528,6 +601,21 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     app.canvas.polygon.get_or_insert_with(Vec::new).push(sp);
                 }
             }
+            Tool::Pen => {
+                let nodes = app.canvas.pen.get_or_insert_with(Vec::new);
+                let on_first = nodes.len() >= 3 && nodes[0].p.distance(p) * vp.scale < PEN_CLOSE_PX;
+                if on_first {
+                    finish_pen(app, true);
+                } else {
+                    // Mayús: el tramo nuevo, en horizontal, vertical o diagonal.
+                    let at = match nodes.last().filter(|_| shift) {
+                        Some(prev) => oc_core::snap::constrain_angle(prev.p, sp, 45.0).0,
+                        None => sp,
+                    };
+                    nodes.push(oc_core::nodes::Node::line(at));
+                    app.canvas.drag = Some(Drag::PenHandle);
+                }
+            }
             Tool::Text => {
                 if let Some(id) = shape_at(app, p) {
                     if app.doc.shape(id).is_some_and(|s| s.is_text()) {
@@ -579,13 +667,18 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                         d.x = 0.0;
                     }
                 }
+                app.canvas.move_guides.clear();
                 if app.doc.page.smart_snap {
-                    d = smart_snap_delta(app, &originals, d);
+                    let (snapped, guides) = smart_snap_delta(app, &originals, d);
+                    d = snapped;
+                    app.canvas.move_guides = guides;
                 }
                 if app.doc.page.snap_to_grid {
                     let step =
                         app.doc.page.grid_spacing_mm / app.doc.page.grid_divisions.max(1) as f64;
                     d = Vec2::new((d.x / step).round() * step, (d.y / step).round() * step);
+                    // La retícula manda: las guías del ajuste ya no describen dónde quedó.
+                    app.canvas.move_guides.clear();
                 }
                 if !committed {
                     app.commit();
@@ -806,6 +899,25 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     committed,
                 });
             }
+            Drag::PenHandle => {
+                // Arrastrar tras poner el nodo le saca dos manejadores simétricos: el de
+                // salida sigue al puntero.
+                if let Some(node) = app.canvas.pen.as_mut().and_then(|n| n.last_mut()) {
+                    let at = node.p;
+                    if at.distance(p) * vp.scale >= DRAG_THRESHOLD_PX {
+                        let to = if shift {
+                            oc_core::snap::constrain_angle(at, p, 45.0).0
+                        } else {
+                            p
+                        };
+                        node.h_out = Some(to);
+                        node.h_in = Some(at - (to - at));
+                        node.smooth = true;
+                        node.symmetric = true;
+                    }
+                }
+                app.canvas.drag = Some(Drag::PenHandle);
+            }
             Drag::Freehand { id, mut points } => {
                 if points.last().is_none_or(|l| l.distance(p) >= 0.4) {
                     points.push(p);
@@ -823,6 +935,7 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
     if response.drag_stopped() || (!response.is_pointer_button_down_on() && !dragging) {
         app.canvas.drag = None;
         app.canvas.snap_guides.clear();
+        app.canvas.move_guides.clear();
         match drag {
             Drag::NodeMarquee { additive, .. } => {
                 if let Some(m) = app.canvas.marquee.take() {
@@ -1043,18 +1156,43 @@ fn apply_eraser(app: &mut OpenCraftCutterApp, path: &[Point]) {
     }
 }
 
-/// Vértice del trazo en edición bajo el puntero (en px).
+/// Borde o centro al que se puede alinear la selección: su coordenada en el eje que se ajusta
+/// y lo que ocupa en el otro (para dibujar la guía).
+struct SnapTarget {
+    value: f64,
+    lo: f64,
+    hi: f64,
+}
+
 /// Ajuste inteligente: corrige el desplazamiento para que los bordes o el centro de la selección
 /// caigan sobre bordes/centros de la página (y de otros objetos, si no se limita a los medios).
-fn smart_snap_delta(app: &OpenCraftCutterApp, originals: &[Shape], d: Vec2) -> Vec2 {
+/// Devuelve también las guías (mm) que muestran con qué se alineó.
+fn smart_snap_delta(
+    app: &OpenCraftCutterApp,
+    originals: &[Shape],
+    d: Vec2,
+) -> (Vec2, Vec<(Point, Point)>) {
     let Some(b) = selection_bounds(originals.iter()) else {
-        return d;
+        return (d, Vec::new());
     };
     let page = &app.doc.page;
     let tol = page.snap_tolerance_mm.max(0.0);
     let moving = b + d;
-    let mut xs = vec![0.0, page.width_mm / 2.0, page.width_mm];
-    let mut ys = vec![0.0, page.height_mm / 2.0, page.height_mm];
+    let (w, h) = (page.width_mm, page.height_mm);
+    let mut xs: Vec<SnapTarget> = [0.0, w / 2.0, w]
+        .map(|value| SnapTarget {
+            value,
+            lo: 0.0,
+            hi: h,
+        })
+        .into();
+    let mut ys: Vec<SnapTarget> = [0.0, h / 2.0, h]
+        .map(|value| SnapTarget {
+            value,
+            lo: 0.0,
+            hi: w,
+        })
+        .into();
     if !page.smart_snap_within_media {
         let moving_ids: std::collections::HashSet<u64> = originals.iter().map(|s| s.id).collect();
         for s in app
@@ -1064,23 +1202,49 @@ fn smart_snap_delta(app: &OpenCraftCutterApp, originals: &[Shape], d: Vec2) -> V
             .filter(|s| s.visible && !moving_ids.contains(&s.id))
         {
             let sb = shape_bounds(s);
-            xs.extend([sb.x0, sb.center().x, sb.x1]);
-            ys.extend([sb.y0, sb.center().y, sb.y1]);
+            xs.extend([sb.x0, sb.center().x, sb.x1].map(|value| SnapTarget {
+                value,
+                lo: sb.y0,
+                hi: sb.y1,
+            }));
+            ys.extend([sb.y0, sb.center().y, sb.y1].map(|value| SnapTarget {
+                value,
+                lo: sb.x0,
+                hi: sb.x1,
+            }));
         }
     }
-    let best = |edges: [f64; 3], targets: &[f64]| -> Option<f64> {
-        let mut best: Option<f64> = None;
+    let best = |edges: [f64; 3], targets: &[SnapTarget]| -> Option<(f64, usize)> {
+        let mut best: Option<(f64, usize)> = None;
         for e in edges {
-            for t in targets {
-                let diff = t - e;
-                if diff.abs() <= tol && best.is_none_or(|b: f64| diff.abs() < b.abs()) {
-                    best = Some(diff);
+            for (i, t) in targets.iter().enumerate() {
+                let diff = t.value - e;
+                if diff.abs() <= tol && best.is_none_or(|(b, _)| diff.abs() < b.abs()) {
+                    best = Some((diff, i));
                 }
             }
         }
         best
     };
-    let dx = best([moving.x0, moving.center().x, moving.x1], &xs).unwrap_or(0.0);
-    let dy = best([moving.y0, moving.center().y, moving.y1], &ys).unwrap_or(0.0);
-    Vec2::new(d.x + dx, d.y + dy)
+    let bx = best([moving.x0, moving.center().x, moving.x1], &xs);
+    let by = best([moving.y0, moving.center().y, moving.y1], &ys);
+    let out = Vec2::new(d.x + bx.map_or(0.0, |b| b.0), d.y + by.map_or(0.0, |b| b.0));
+    // Cada guía cubre el objetivo y la selección ya colocada.
+    let placed = b + out;
+    let mut guides = Vec::new();
+    if let Some((_, i)) = bx {
+        let t = &xs[i];
+        guides.push((
+            Point::new(t.value, t.lo.min(placed.y0)),
+            Point::new(t.value, t.hi.max(placed.y1)),
+        ));
+    }
+    if let Some((_, i)) = by {
+        let t = &ys[i];
+        guides.push((
+            Point::new(t.lo.min(placed.x0), t.value),
+            Point::new(t.hi.max(placed.x1), t.value),
+        ));
+    }
+    (out, guides)
 }
