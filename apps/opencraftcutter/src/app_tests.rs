@@ -2214,11 +2214,36 @@ fn template_dialog_inserts_cut_and_fold_lines() {
     );
     assert_eq!(b.origin(), area.origin());
 
-    // Las demás plantillas también se insertan (la etiqueta, sin dobleces).
+    // Las demás plantillas también se insertan (la etiqueta y el marcapáginas, sin dobleces),
+    // todas dentro de lo que cabe medir y con sus líneas en mm válidos.
     let mut b = app();
-    for kind in 1..4 {
+    let names = oc_core::templates::Template::NAMES;
+    for (kind, name) in names.iter().enumerate().skip(1) {
+        let before = b.doc.shapes.len();
         let folds = b.insert_template(kind, crate::insert::template_defaults(kind));
-        assert_eq!(folds, kind != 3, "plantilla {kind}");
+        assert_eq!(folds, kind != 3 && kind != 8, "plantilla {name}");
+        let added = &b.doc.shapes[before..];
+        assert_eq!(added.len(), if folds { 2 } else { 1 }, "plantilla {name}");
+        assert_eq!(added[0].name, *name);
+        // El contorno tiene un tamaño razonable y los dobleces caen dentro de él.
+        let outline = oc_core::edit::shape_bounds(&added[0]);
+        assert!(
+            outline.width() > 5.0
+                && outline.height() > 5.0
+                && outline.width() < 600.0
+                && outline.height() < 600.0,
+            "plantilla {name}: {outline:?}"
+        );
+        for s in &added[1..] {
+            let r = oc_core::edit::shape_bounds(s);
+            assert!(
+                outline.inflate(1e-6, 1e-6).contains(r.origin())
+                    && outline
+                        .inflate(1e-6, 1e-6)
+                        .contains(kurbo::Point::new(r.x1, r.y1)),
+                "plantilla {name}: dobleces {r:?} fuera de {outline:?}"
+            );
+        }
     }
 }
 
@@ -3763,4 +3788,117 @@ fn direction_arrows_follow_the_path() {
     assert_eq!(c.last().unwrap().1, vec2(0.0, 1.0));
     // Demasiado pequeño para verse: sin flechas.
     assert!(arrow_positions(&[pos2(0.0, 0.0), pos2(5.0, 0.0)]).is_empty());
+}
+
+// ---------------------------------------------------------------- Pestañas de pegado
+
+#[test]
+fn edit_points_adds_a_glue_tab_with_its_fold_line() {
+    let mut h = edit_square();
+    let a = h.state_mut();
+    assert!(
+        a.tab_segments().is_empty(),
+        "sin tramo seleccionado no hay pestaña"
+    );
+    // Los dos nodos del lado de arriba (y = 40).
+    let (n1, n2) = (node_at(a, 40.0, 40.0), node_at(a, 80.0, 40.0));
+    a.point_select(0, n1, false);
+    a.point_select(0, n2, true);
+    assert_eq!(a.tab_segments().len(), 1);
+    a.canvas.tab_width_mm = 8.0;
+    a.canvas.tab_angle_deg = 45.0;
+    a.point_add_glue_tabs();
+    // El contorno gana el trapecio, hacia fuera (arriba).
+    let p = anchors(a);
+    assert_eq!(p.len(), 6);
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(48.0, 32.0)) < 1e-6),
+        "{p:?}"
+    );
+    assert!(
+        p.iter()
+            .any(|q| q.distance(kurbo::Point::new(72.0, 32.0)) < 1e-6)
+    );
+    assert_eq!(
+        a.selected_nodes().len(),
+        2,
+        "quedan seleccionados los nodos de la pestaña"
+    );
+    // El lado original queda como línea de doblez: otra forma, azul y a rayas, en su grupo.
+    assert_eq!(a.doc.shapes.len(), 2);
+    let (shape, fold) = (&a.doc.shapes[0], &a.doc.shapes[1]);
+    assert!(fold.name.ends_with(": dobleces"));
+    assert!(shape.group.is_some() && shape.group == fold.group);
+    assert_eq!(fold.stroke.style, oc_core::shape::LineStyle::Dashed);
+    assert_ne!(fold.stroke.color, shape.stroke.color);
+    let line = fold.world_subpaths();
+    assert_eq!(line.len(), 1);
+    let mut ends = line[0].0.clone();
+    ends.sort_by(|a, b| a.x.total_cmp(&b.x));
+    assert!(ends[0].distance(kurbo::Point::new(40.0, 40.0)) < 1e-6);
+    assert!(ends[1].distance(kurbo::Point::new(80.0, 40.0)) < 1e-6);
+    // Otra pestaña en otro lado: su doblez va a la misma forma de dobleces.
+    let (m1, m2) = (node_at(a, 80.0, 80.0), node_at(a, 40.0, 80.0));
+    a.point_select(0, m1, false);
+    a.point_select(0, m2, true);
+    a.point_add_glue_tabs();
+    assert_eq!(a.doc.shapes.len(), 2);
+    assert_eq!(a.doc.shapes[1].world_subpaths().len(), 2);
+    assert!(
+        anchors(a).iter().any(|q| (q.y - 88.0).abs() < 1e-6),
+        "sale hacia abajo"
+    );
+    // Cada pestaña es un paso de deshacer, con su doblez.
+    a.undo();
+    assert_eq!(anchors(a).len(), 6);
+    assert_eq!(a.doc.shapes[1].world_subpaths().len(), 1);
+    a.undo();
+    assert_eq!(anchors(a).len(), 4);
+    assert_eq!(a.doc.shapes.len(), 1);
+}
+
+#[test]
+fn glue_tab_from_the_panel_and_the_context_menu() {
+    let mut h = edit_square();
+    // Varios lados a la vez desde el panel: todos los nodos seleccionados.
+    h.state_mut().point_select_all();
+    h.run_steps(3);
+    click(&mut h, "Añadir pestaña de pegado");
+    let a = h.state();
+    assert_eq!(anchors(a).len(), 12, "cuatro pestañas");
+    assert_eq!(a.doc.shapes[1].world_subpaths().len(), 4);
+    let b = bounds(&a.doc.shapes[0]);
+    assert!(
+        (b.width() - 56.0).abs() < 1e-6 && (b.height() - 56.0).abs() < 1e-6,
+        "{b:?}"
+    );
+    // Desde el menú contextual de un tramo.
+    let mut h = edit_square();
+    h.state_mut().panel = None;
+    h.run_steps(2);
+    right_click_mm(&mut h, (40.0, 60.0));
+    click(&mut h, "Añadir pestaña de pegado");
+    let a = h.state();
+    assert_eq!(anchors(a).len(), 6);
+    assert!(
+        anchors(a).iter().any(|q| (q.x - 32.0).abs() < 1e-6),
+        "sale a la izquierda"
+    );
+    // Un tramo curvo no la admite: ni cambia la forma ni queda nada en el historial.
+    let mut h = edit_square();
+    let a = h.state_mut();
+    a.point_select(0, 0, false);
+    a.point_select(0, 1, true);
+    a.point_segment_kind(true);
+    let (shapes, nodes) = (a.doc.shapes.len(), anchors(a).len());
+    assert!(a.tab_segments().is_empty());
+    a.point_add_glue_tabs_on(&[(0, 0)]);
+    assert_eq!((a.doc.shapes.len(), anchors(a).len()), (shapes, nodes));
+    assert!(a.canvas.point_edit.is_some());
+    a.undo();
+    assert!(
+        a.doc.shapes[0].world_node_paths()[0].segment(0).1.is_none(),
+        "el siguiente deshacer es el de «convertir en curva», no uno vacío"
+    );
 }

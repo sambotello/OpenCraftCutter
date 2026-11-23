@@ -510,6 +510,9 @@ fn points_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarget)
         if !curve && item(ui, "Convertir en curva", "") {
             app.point_segment_set(si, seg, true);
         }
+        if !curve && item(ui, "Añadir pestaña de pegado", "") {
+            app.point_add_glue_tabs_on(&[(si, seg)]);
+        }
         ui.separator();
     } else if !app.selected_nodes().is_empty() {
         for a in [Action::Delete, Action::Break, Action::Join] {

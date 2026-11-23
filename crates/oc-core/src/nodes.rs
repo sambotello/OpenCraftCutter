@@ -888,6 +888,74 @@ pub fn join_open_paths(paths: &mut Vec<NodePath>, fuse_tol: f64) -> usize {
     joins
 }
 
+/// ¿Está `p` dentro del polígono `poly` (regla par-impar)?
+fn point_in_polygon(p: Point, poly: &[Point]) -> bool {
+    let mut inside = false;
+    let n = poly.len();
+    for i in 0..n {
+        let (a, b) = (poly[i], poly[(i + 1) % n]);
+        if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) / (b.y - a.y) * (b.x - a.x) {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+/// Lado hacia el que sale una pestaña del tramo recto `seg` (unitario): hacia fuera de un
+/// trazado cerrado; en uno abierto, hacia el lado contrario al resto del trazado.
+fn tab_side(np: &NodePath, seg: usize) -> Option<kurbo::Vec2> {
+    let (a, curve, b) = np.segment(seg);
+    if curve.is_some() || a.distance(b) < 1e-9 {
+        return None;
+    }
+    let u = (b - a).normalize();
+    let n = kurbo::Vec2::new(u.y, -u.x);
+    let mid = a.midpoint(b);
+    let flat = np.flatten(FLATTEN_TOL_MM);
+    let outward = if np.closed {
+        // Un punto muy cerca del tramo, del lado de `n`: si cae dentro, la pestaña va al otro.
+        let probe = (a.distance(b) * 1e-3).max(1e-4);
+        !point_in_polygon(mid + n * probe, &flat)
+    } else {
+        // Hacia donde no está el centro del resto del trazado.
+        let (sx, sy) = flat.iter().fold((0.0, 0.0), |(x, y), q| (x + q.x, y + q.y));
+        let center = Point::new(sx / flat.len() as f64, sy / flat.len() as f64);
+        (center - mid).dot(n) <= 0.0
+    };
+    Some(if outward { n } else { -n })
+}
+
+/// Añade una pestaña de pegado al tramo recto `seg`: un trapecio de `width` mm de fondo cuyos
+/// lados cierran `angle_deg` con el tramo (90° = rectángulo). El tramo pasa a ser tres (los dos
+/// lados y el borde de la pestaña). Devuelve el doblez (los dos extremos del tramo original), o
+/// `None` si el tramo es curvo o demasiado corto.
+pub fn add_glue_tab(
+    np: &mut NodePath,
+    seg: usize,
+    width: f64,
+    angle_deg: f64,
+) -> Option<(Point, Point)> {
+    if seg >= np.segment_count() || width <= 0.0 {
+        return None;
+    }
+    let n = tab_side(np, seg)?;
+    let (a, _, b) = np.segment(seg);
+    let len = a.distance(b);
+    let u = (b - a) / len;
+    // Cuánto se mete cada lado: nunca más de un 40 % del tramo, para que quede borde.
+    let angle = angle_deg.clamp(20.0, 90.0).to_radians();
+    let inset = (width / angle.tan()).min(len * 0.4);
+    let (p1, p2) = (a + n * width + u * inset, b + n * width - u * inset);
+    let count = np.nodes.len();
+    let j = (seg + 1) % count;
+    // Los extremos dejan de ser puntos suaves hacia la pestaña.
+    np.nodes[seg].h_out = None;
+    np.nodes[j].h_in = None;
+    np.nodes.insert(seg + 1, Node::line(p1));
+    np.nodes.insert(seg + 2, Node::line(p2));
+    Some((a, b))
+}
+
 /// Alinea las anclas de los nodos `sel` (trazado, nodo) entre sí; los manejadores se mueven
 /// con su nodo. Hacen falta al menos dos nodos.
 pub fn align_nodes(paths: &mut [NodePath], sel: &[(usize, usize)], mode: crate::arrange::Align) {
@@ -1379,6 +1447,64 @@ mod tests {
         assert_eq!(t.nodes[2].radius, 2.0);
         t.reverse();
         assert_eq!(t.nodes.iter().filter(|n| n.radius == 2.0).count(), 1);
+    }
+
+    #[test]
+    fn glue_tab_goes_outside_and_keeps_the_fold() {
+        // Cuadrado de 10: pestaña de 3 mm a 45° en el lado de arriba (y = 0).
+        let mut s = square();
+        let fold = add_glue_tab(&mut s, 0, 3.0, 45.0).unwrap();
+        assert_eq!(fold, (Point::new(0.0, 0.0), Point::new(10.0, 0.0)));
+        assert_eq!(s.nodes.len(), 6);
+        // Sale hacia fuera (y negativa) y se estrecha 3 mm por cada lado.
+        assert!(
+            s.nodes[1].p.distance(Point::new(3.0, -3.0)) < 1e-9,
+            "{:?}",
+            s.nodes[1]
+        );
+        assert!(s.nodes[2].p.distance(Point::new(7.0, -3.0)) < 1e-9);
+        // Da igual el sentido del trazado: sigue saliendo hacia fuera.
+        let mut r = square();
+        r.reverse();
+        let seg = (0..4)
+            .find(|i| {
+                let (a, _, b) = r.segment(*i);
+                a.y == 0.0 && b.y == 0.0
+            })
+            .unwrap();
+        add_glue_tab(&mut r, seg, 3.0, 45.0).unwrap();
+        assert!(r.nodes.iter().any(|n| n.p.y < -2.9));
+        assert!(r.nodes.iter().all(|n| n.p.y <= 10.0 + 1e-9));
+        // A 90° es un rectángulo; en un tramo corto los lados no se cruzan.
+        let mut q = square();
+        add_glue_tab(&mut q, 1, 2.0, 90.0).unwrap();
+        assert!(q.nodes[2].p.distance(Point::new(12.0, 0.0)) < 1e-9);
+        let mut t = square();
+        add_glue_tab(&mut t, 0, 30.0, 30.0).unwrap();
+        assert!(
+            t.nodes[1].p.x < t.nodes[2].p.x,
+            "queda borde: {:?}",
+            &t.nodes[1..3]
+        );
+        // En el último tramo de un trazado cerrado (del último nodo al primero).
+        let mut c = square();
+        add_glue_tab(&mut c, 3, 3.0, 45.0).unwrap();
+        assert_eq!(c.nodes.len(), 6);
+        assert!(c.nodes[4].p.x < -2.9 && c.nodes[5].p.x < -2.9);
+        // Un tramo curvo no admite pestaña.
+        let mut e = ellipse(kurbo::Rect::new(0.0, 0.0, 20.0, 10.0));
+        assert!(add_glue_tab(&mut e, 0, 3.0, 45.0).is_none());
+        // Trazado abierto: la pestaña sale hacia el lado contrario al resto.
+        let mut o = NodePath::from_points(
+            &[
+                Point::new(0.0, 0.0),
+                Point::new(10.0, 0.0),
+                Point::new(10.0, 10.0),
+            ],
+            false,
+        );
+        add_glue_tab(&mut o, 0, 2.0, 60.0).unwrap();
+        assert!(o.nodes[1].p.y < 0.0);
     }
 
     #[test]

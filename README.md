@@ -28,6 +28,7 @@ Software libre de diseño y corte para cortadoras de manualidades, compatible co
 - Cuchilla y borrador; grupos; trazados compuestos.
 - Pegar desde otros programas: imágenes, vectores (SVG o PDF) y archivos copiados en el Finder.
 - Menús contextuales; ⌥+clic para llegar a las formas tapadas; ajuste con guías al mover y al dibujar; guías de regla.
+- Plantillas a medida (cajas, sobre, tarjetas, cono, bolsa, etiqueta, marcapáginas) y pestañas de pegado sobre cualquier lado recto.
 - Marco de selección con cotas, barra de selección con tamaño, posición, punto de referencia y acciones rápidas.
 
 **Paneles**
