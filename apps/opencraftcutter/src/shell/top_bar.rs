@@ -233,6 +233,22 @@ fn view_menu(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
     changed |= ui
         .checkbox(&mut page.smart_snap, "Habilitar ajuste inteligente")
         .changed();
+    changed |= ui
+        .checkbox(&mut page.show_guides, "Mostrar guías")
+        .on_hover_text(
+            "Arrastra desde una regla para sacar una guía; devuélvela a la regla para borrarla.",
+        )
+        .changed();
+    let has_guides = !page.guides.is_empty();
+    if ui
+        .add_enabled(has_guides, egui::Button::new("Borrar las guías"))
+        .clicked()
+    {
+        crate::canvas::guides::clear_guides(app);
+        ui.close();
+        return;
+    }
+    let page = &mut app.doc.page;
     ui.separator();
     ui.horizontal(|ui| {
         changed |= ui

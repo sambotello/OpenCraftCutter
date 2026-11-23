@@ -132,7 +132,7 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
     draw_pen(app, painter, &vp);
     if let Some(poly) = &app.canvas.polygon {
         let mut pts: Vec<Pos2> = poly.iter().map(|p| vp.to_screen(*p)).collect();
-        if let Some(c) = app.canvas.cursor_mm {
+        if let Some(c) = app.canvas.snap_cursor.or(app.canvas.cursor_mm) {
             pts.push(vp.to_screen(c));
         }
         if pts.len() >= 2 {
@@ -204,6 +204,21 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
             }
         }
     }
+    // Guías del ajuste: del punto con el que se alinea al que se arrastra o se dibuja (y un poco más).
+    for (target, at) in &app.canvas.snap_guides {
+        let (a, b) = (vp.to_screen(*target), vp.to_screen(*at));
+        let d = b - a;
+        let ext = if d.length() > 0.5 {
+            d.normalized() * 14.0
+        } else {
+            egui::Vec2::ZERO
+        };
+        painter.line_segment([a - ext, b + ext], Stroke::new(1.0, SNAP_GUIDE));
+        let x = egui::vec2(3.0, 3.0);
+        let y = egui::vec2(3.0, -3.0);
+        painter.line_segment([a - x, a + x], Stroke::new(1.0, SNAP_GUIDE));
+        painter.line_segment([a - y, a + y], Stroke::new(1.0, SNAP_GUIDE));
+    }
     // Guías del ajuste al mover formas: el borde o centro con el que se alineó la selección.
     for (a, b) in &app.canvas.move_guides {
         painter.line_segment(
@@ -246,7 +261,8 @@ fn draw_pen(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
     let last = nodes[nodes.len() - 1];
     // Vista previa del siguiente tramo (mientras no se esté arrastrando un manejador).
     let dragging = matches!(app.canvas.drag, Some(super::Drag::PenHandle));
-    if let Some(c) = app.canvas.cursor_mm.filter(|_| !dragging) {
+    let cursor = app.canvas.snap_cursor.or(app.canvas.cursor_mm);
+    if let Some(c) = cursor.filter(|_| !dragging) {
         let next = oc_core::nodes::NodePath {
             nodes: vec![last, oc_core::nodes::Node::line(c)],
             closed: false,
@@ -573,20 +589,5 @@ fn draw_point_edit(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
                 Stroke::new(1.5, theme::SELECTION),
             );
         }
-    }
-    // Guías del ajuste: del punto con el que se alinea al nodo que se arrastra (y un poco más).
-    for (target, at) in &app.canvas.snap_guides {
-        let (a, b) = (vp.to_screen(*target), vp.to_screen(*at));
-        let d = b - a;
-        let ext = if d.length() > 0.5 {
-            d.normalized() * 14.0
-        } else {
-            egui::Vec2::ZERO
-        };
-        painter.line_segment([a - ext, b + ext], Stroke::new(1.0, SNAP_GUIDE));
-        let x = egui::vec2(3.0, 3.0);
-        let y = egui::vec2(3.0, -3.0);
-        painter.line_segment([a - x, a + x], Stroke::new(1.0, SNAP_GUIDE));
-        painter.line_segment([a - y, a + y], Stroke::new(1.0, SNAP_GUIDE));
     }
 }

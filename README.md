@@ -27,7 +27,7 @@ Software libre de diseño y corte para cortadoras de manualidades, compatible co
 - **Editar puntos** con nodos Bézier: mover nodos y manejadores, añadir un nodo con un clic en la línea, selección múltiple (Mayús+clic o recuadro), ajuste a otros puntos, a la retícula y a la página con guías, alinear y distribuir puntos, posición numérica, flechas del teclado, borrar punto, romper, unir y cerrar trazados, vértice / suavizar / simétrico, convertir tramos en recta o curva, punto medio, invertir sentido, simplificar y recuento de nodos. Doble clic en una forma entra en este modo.
 - Cuchilla y borrador; grupos; trazados compuestos.
 - Pegar desde otros programas: imágenes, vectores (SVG o PDF) y archivos copiados en el Finder.
-- Menús contextuales; ⌥+clic para llegar a las formas tapadas; guías al mover con el ajuste inteligente.
+- Menús contextuales; ⌥+clic para llegar a las formas tapadas; ajuste con guías al mover y al dibujar; guías de regla.
 - Marco de selección con cotas, barra de selección con tamaño, posición, punto de referencia y acciones rápidas.
 
 **Paneles**

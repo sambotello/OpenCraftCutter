@@ -3447,3 +3447,320 @@ fn hidden_shapes_cannot_be_clicked() {
     }
     assert_eq!(h.state().doc.selected, vec![ids[0]]);
 }
+
+#[test]
+fn pen_continues_an_open_path_from_its_end() {
+    let mut h = pen();
+    h.state_mut()
+        .doc
+        .add_shape(line((40.0, 40.0), (90.0, 40.0)));
+    let id = h.state().doc.shapes[0].id;
+    h.run_steps(2);
+    // Clic sobre el extremo final: se continúa ese trazado (no se crea otro).
+    click_mm(&mut h, (90.0, 40.0));
+    assert_eq!(h.state().canvas.pen.as_ref().map(Vec::len), Some(2));
+    assert_eq!(h.state().canvas.pen_extends, Some((id, 0)));
+    click_mm(&mut h, (90.0, 80.0));
+    click_mm(&mut h, (60.0, 100.0));
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    let a = h.state();
+    assert_eq!(a.doc.shapes.len(), 1, "sigue siendo la misma forma");
+    let np = a.doc.shapes[0].world_node_paths()[0].clone();
+    assert_eq!(np.nodes.len(), 4);
+    assert!(!np.closed && np.nodes[0].p.distance(kurbo::Point::new(40.0, 40.0)) < 1e-6);
+    assert!(np.nodes[3].p.distance(kurbo::Point::new(60.0, 100.0)) < 0.5);
+    assert_eq!(a.doc.shapes[0].stroke.width_pt, 1.0, "conserva su estilo");
+    // Un solo deshacer quita lo añadido y deja la línea original.
+    h.state_mut().undo();
+    assert_eq!(h.state().doc.shapes[0].world_node_paths()[0].nodes.len(), 2);
+    // Desde el otro extremo: se continúa por ahí, y un clic en el extremo opuesto lo cierra.
+    click_mm(&mut h, (40.0, 40.0));
+    assert_eq!(h.state().canvas.pen_extends, Some((id, 0)));
+    click_mm(&mut h, (40.0, 90.0));
+    click_mm(&mut h, (90.0, 40.0));
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    assert_eq!(a.doc.shapes.len(), 1);
+    let np = a.doc.shapes[0].world_node_paths()[0].clone();
+    assert!(np.closed && np.nodes.len() == 3, "{np:?}");
+    // Empezar y terminar sin añadir nada no toca el documento ni el historial.
+    let mut h = pen();
+    h.state_mut()
+        .doc
+        .add_shape(line((40.0, 40.0), (90.0, 40.0)));
+    h.run_steps(2);
+    click_mm(&mut h, (90.0, 40.0));
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    assert!(!h.state().history.can_undo());
+}
+
+// ---------------------------------------------------------------- Ajuste al dibujar
+
+#[test]
+fn drawing_tools_snap_to_other_shapes() {
+    // Un rectángulo de (40, 40) a (70, 70) como referencia.
+    let setup = |tool: crate::app::Tool, smart: bool| {
+        let mut h = app_harness();
+        let mut r = rect(40.0, RED);
+        r.rect = Rect::new(40.0, 40.0, 70.0, 70.0);
+        h.state_mut().doc.add_shape(r);
+        h.state_mut().doc.page.smart_snap = smart;
+        h.state_mut().tool = tool;
+        h.state_mut().panel = None;
+        h.run_steps(3);
+        h
+    };
+    // Línea que acaba cerca de la esquina (70, 70): con ajuste cae justo encima.
+    let mut h = setup(crate::app::Tool::Line, true);
+    drag_mm(&mut h, (120.0, 120.0), (70.6, 70.5), egui::Modifiers::NONE);
+    let np = h.state().doc.shapes[1].world_node_paths()[0].clone();
+    assert_eq!(np.nodes[1].p, kurbo::Point::new(70.0, 70.0), "{np:?}");
+    assert!(h.state().canvas.snap_guides.is_empty() || h.state().canvas.drag.is_none());
+    // Sin ajuste inteligente queda donde se soltó.
+    let mut h = setup(crate::app::Tool::Line, false);
+    drag_mm(&mut h, (120.0, 120.0), (70.6, 70.5), egui::Modifiers::NONE);
+    let end = h.state().doc.shapes[1].world_node_paths()[0].nodes[1].p;
+    assert!(
+        (end.x - 70.6).abs() < 0.2 && end != kurbo::Point::new(70.0, 70.0),
+        "{end:?}"
+    );
+    // Con ⌘ pulsada tampoco se ajusta.
+    let mut h = setup(crate::app::Tool::Line, true);
+    drag_mm(
+        &mut h,
+        (120.0, 120.0),
+        (70.6, 70.5),
+        egui::Modifiers::COMMAND,
+    );
+    let end = h.state().doc.shapes[1].world_node_paths()[0].nodes[1].p;
+    assert!(end != kurbo::Point::new(70.0, 70.0), "{end:?}");
+    // Pluma: el punto se alinea con el borde del rectángulo y con sus propios puntos.
+    let mut h = setup(crate::app::Tool::Pen, true);
+    click_mm(&mut h, (100.0, 40.4));
+    click_mm(&mut h, (130.0, 90.0));
+    click_mm(&mut h, (100.3, 120.0));
+    let nodes = h.state().canvas.pen.clone().unwrap();
+    assert_eq!(
+        nodes[0].p.y, 40.0,
+        "a la altura del borde superior del rectángulo"
+    );
+    assert_eq!(
+        nodes[2].p.x, nodes[0].p.x,
+        "en vertical con su primer punto"
+    );
+    // Antes de hacer clic ya se ven las guías: el puntero se muestra ajustado.
+    let pos = h
+        .state()
+        .canvas
+        .viewport
+        .to_screen(kurbo::Point::new(150.0, 70.3));
+    h.hover_at(pos);
+    h.run_steps(2);
+    assert_eq!(h.state().canvas.snap_cursor.map(|c| c.y), Some(70.0));
+    assert!(!h.state().canvas.snap_guides.is_empty());
+    // Rectángulo: la esquina que se arrastra se ajusta a la del otro.
+    let mut h = setup(crate::app::Tool::Rect, true);
+    drag_mm(&mut h, (120.0, 120.0), (70.5, 70.4), egui::Modifiers::NONE);
+    let r = h.state().doc.shapes[1].rect;
+    assert_eq!((r.x0, r.y0), (70.0, 70.0), "{r:?}");
+}
+
+// ---------------------------------------------------------------- Guías de regla
+
+/// Arrastra entre dos puntos de la pantalla (px).
+fn drag_px(h: &mut AppHarness, from: egui::Pos2, to: egui::Pos2) {
+    h.hover_at(from);
+    h.step();
+    h.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.step();
+    for k in 1..=8 {
+        h.hover_at(from + (to - from) * (k as f32 / 8.0));
+        h.step();
+    }
+    h.event(egui::Event::PointerButton {
+        pos: to,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(3);
+}
+
+#[test]
+fn ruler_guides_are_dragged_out_moved_and_removed() {
+    use oc_core::document::Guide;
+    let mut h = app_harness();
+    h.state_mut().panel = None;
+    h.run_steps(3);
+    let stage = h.state().canvas.stage;
+    let vp = h.state().canvas.viewport;
+    let at = |x: f64, y: f64| vp.to_screen(kurbo::Point::new(x, y));
+    // Desde la regla superior sale una guía horizontal; desde la izquierda, una vertical.
+    let on_top_ruler = egui::pos2(stage.center().x, stage.top() - 8.0);
+    drag_px(&mut h, on_top_ruler, at(100.0, 80.0));
+    let on_left_ruler = egui::pos2(stage.left() - 8.0, stage.center().y);
+    drag_px(&mut h, on_left_ruler, at(50.0, 120.0));
+    let g = h.state().doc.page.guides.clone();
+    assert_eq!(g.len(), 2, "{g:?}");
+    assert!(!g[0].vertical && (g[0].pos - 80.0).abs() < 0.5, "{g:?}");
+    assert!(g[1].vertical && (g[1].pos - 50.0).abs() < 0.5, "{g:?}");
+    assert!(h.state().canvas.new_guide.is_none());
+    // Soltarla de vuelta en la regla (sin llegar al lienzo) no crea nada.
+    drag_px(&mut h, on_top_ruler, on_top_ruler + egui::vec2(40.0, 2.0));
+    assert_eq!(h.state().doc.page.guides.len(), 2);
+    // Con Seleccionar, una guía se mueve arrastrándola.
+    let y = h.state().doc.page.guides[0].pos;
+    drag_mm(&mut h, (150.0, y), (150.0, 130.0), egui::Modifiers::NONE);
+    assert!((h.state().doc.page.guides[0].pos - 130.0).abs() < 0.5);
+    // Un solo deshacer la devuelve a su sitio.
+    h.state_mut().undo();
+    assert!((h.state().doc.page.guides[0].pos - y).abs() < 1e-9);
+    // Arrastrarla hasta la regla la borra.
+    drag_px(&mut h, at(150.0, y), on_top_ruler);
+    let g: Vec<Guide> = h.state().doc.page.guides.clone();
+    assert_eq!(g.len(), 1);
+    assert!(g[0].vertical);
+    // «Borrar las guías» quita las que queden, y se puede deshacer.
+    crate::canvas::guides::clear_guides(h.state_mut());
+    assert!(h.state().doc.page.guides.is_empty());
+    h.state_mut().undo();
+    assert_eq!(h.state().doc.page.guides.len(), 1);
+}
+
+#[test]
+fn drawing_and_moving_snap_to_ruler_guides() {
+    use oc_core::document::Guide;
+    let mut h = app_harness();
+    {
+        let a = h.state_mut();
+        a.doc.page.smart_snap = true;
+        a.doc.page.guides = vec![
+            Guide {
+                vertical: true,
+                pos: 100.0,
+            },
+            Guide {
+                vertical: false,
+                pos: 60.0,
+            },
+        ];
+        a.panel = None;
+        a.tool = crate::app::Tool::Line;
+    }
+    h.run_steps(3);
+    // Una línea que acaba cerca del cruce de las dos guías cae justo en él.
+    drag_mm(&mut h, (30.0, 150.0), (100.5, 60.4), egui::Modifiers::NONE);
+    let end = h.state().doc.shapes[0].world_node_paths()[0].nodes[1].p;
+    assert_eq!(end, kurbo::Point::new(100.0, 60.0));
+    // Al mover una forma, su borde se pega a la guía vertical.
+    let mut r = rect(0.0, RED);
+    r.rect = Rect::new(120.0, 100.0, 150.0, 130.0);
+    let id = h.state_mut().doc.add_shape(r);
+    h.state_mut().tool = crate::app::Tool::Select;
+    h.run_steps(2);
+    drag_mm(
+        &mut h,
+        (135.0, 100.0),
+        (115.8, 100.0),
+        egui::Modifiers::NONE,
+    );
+    assert_eq!(h.state().doc.shape(id).unwrap().rect.x0, 100.0);
+    // Con las guías ocultas no se ajusta a ellas (en un documento sin nada más a lo que
+    // ajustarse cerca).
+    let mut hidden = app_harness();
+    {
+        let a = hidden.state_mut();
+        a.doc.page.smart_snap = true;
+        a.doc.page.show_guides = false;
+        a.doc.page.guides = vec![Guide {
+            vertical: false,
+            pos: 60.0,
+        }];
+        a.panel = None;
+        a.tool = crate::app::Tool::Line;
+    }
+    hidden.run_steps(3);
+    drag_mm(
+        &mut hidden,
+        (30.0, 150.0),
+        (90.0, 60.4),
+        egui::Modifiers::NONE,
+    );
+    let end = hidden.state().doc.shapes[0].world_node_paths()[0].nodes[1].p;
+    assert!((end.y - 60.4).abs() < 0.2 && end.y != 60.0, "{end:?}");
+    // Las guías se guardan con el documento.
+    let doc = oc_core::Document::from_json(&h.state().doc.to_json()).unwrap();
+    assert_eq!(doc.page.guides.len(), 2);
+}
+
+// ---------------------------------------------------------------- Sentido de corte
+
+#[test]
+fn send_preview_shows_cut_direction_and_order() {
+    let mut h = two_rects();
+    h.state_mut().workspace = crate::app::Workspace::Send;
+    h.run_steps(4);
+    assert!(
+        h.state().canvas.send.direction_paths.is_empty(),
+        "apagado por defecto"
+    );
+    click(&mut h, "Mostrar el sentido de corte");
+    h.run_steps(3);
+    let a = h.state();
+    assert!(a.canvas.send.show_direction);
+    // Un trazo por rectángulo, en el orden y con el punto de inicio que se enviarán.
+    let paths = a.canvas.send.direction_paths.clone();
+    assert_eq!(paths.len(), 2, "{paths:?}");
+    assert!(paths.iter().all(|(pts, closed)| *closed && pts.len() >= 4));
+    // Invertir el sentido de un trazado cambia hacia dónde se corta.
+    let before = paths[0].0.clone();
+    let id = h.state().doc.shapes[0].id;
+    {
+        let a = h.state_mut();
+        a.workspace = crate::app::Workspace::Design;
+        a.doc.selected = vec![id];
+        a.object_run(Cmd::ToPath);
+        let id = a.doc.selected[0];
+        crate::canvas::point_edit::begin(a, id);
+        a.point_select(0, 0, false);
+        a.point_reverse();
+        a.canvas.point_edit = None;
+        a.workspace = crate::app::Workspace::Send;
+    }
+    h.run_steps(4);
+    let after = h.state().canvas.send.direction_paths.clone();
+    let same_points = |a: &[kurbo::Point], b: &[kurbo::Point]| {
+        a.len() == b.len() && a.iter().all(|p| b.iter().any(|q| p.distance(*q) < 1e-6))
+    };
+    let reversed = after
+        .iter()
+        .find(|(pts, _)| same_points(pts, &before))
+        .expect("el mismo rectángulo");
+    assert!(reversed.0 != before, "mismo contorno, otro recorrido");
+}
+
+#[test]
+fn direction_arrows_follow_the_path() {
+    use crate::canvas::send_overlay::arrow_positions;
+    use egui::{pos2, vec2};
+    // Trazo corto: una flecha en el centro, apuntando en el sentido del trazo.
+    let a = arrow_positions(&[pos2(0.0, 0.0), pos2(100.0, 0.0)]);
+    assert_eq!(a, vec![(pos2(50.0, 0.0), vec2(1.0, 0.0))]);
+    // Al revés, la flecha apunta al otro lado.
+    let b = arrow_positions(&[pos2(100.0, 0.0), pos2(0.0, 0.0)]);
+    assert_eq!(b[0].1, vec2(-1.0, 0.0));
+    // Trazo largo con una esquina: varias flechas, cada una en la dirección de su tramo.
+    let c = arrow_positions(&[pos2(0.0, 0.0), pos2(300.0, 0.0), pos2(300.0, 300.0)]);
+    assert!(c.len() >= 3);
+    assert_eq!(c.first().unwrap().1, vec2(1.0, 0.0));
+    assert_eq!(c.last().unwrap().1, vec2(0.0, 1.0));
+    // Demasiado pequeño para verse: sin flechas.
+    assert!(arrow_positions(&[pos2(0.0, 0.0), pos2(5.0, 0.0)]).is_empty());
+}

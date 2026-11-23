@@ -64,6 +64,7 @@ pub fn draw(app: &OpenCraftCutterApp, painter: &Painter, stage: egui::Rect) {
             }
         }
     }
+    cut_direction(app, painter);
     simulation(app, painter);
     // Detalles demasiado finos para el material, en rojo encima.
     let red = Color32::from_rgb(0xef, 0x23, 0x23);
@@ -77,6 +78,85 @@ pub fn draw(app: &OpenCraftCutterApp, painter: &Painter, stage: egui::Rect) {
             for i in 0..pts.len() {
                 painter.line_segment([pts[i], pts[(i + 1) % pts.len()]], Stroke::new(2.5, red));
             }
+        }
+    }
+}
+
+/// Separación (px) entre flechas a lo largo de un trazo largo.
+const ARROW_EVERY_PX: f32 = 140.0;
+/// Con más trazos que estos, el número de orden ya no se lee: solo puntos y flechas.
+const MAX_NUMBERED: usize = 150;
+
+/// Posiciones (px) y direcciones de las flechas de un trazo: una en el centro si es corto, o
+/// una cada [`ARROW_EVERY_PX`].
+pub fn arrow_positions(pts: &[egui::Pos2]) -> Vec<(egui::Pos2, egui::Vec2)> {
+    let total: f32 = pts.windows(2).map(|w| (w[1] - w[0]).length()).sum();
+    if total < 12.0 {
+        return Vec::new();
+    }
+    let marks: Vec<f32> = if total < 2.0 * ARROW_EVERY_PX {
+        vec![total / 2.0]
+    } else {
+        let n = (total / ARROW_EVERY_PX).floor() as usize;
+        (0..n)
+            .map(|k| (k as f32 + 0.5) * total / n as f32)
+            .collect()
+    };
+    let mut out = Vec::new();
+    let mut walked = 0.0;
+    let mut next = 0;
+    for w in pts.windows(2) {
+        let d = w[1] - w[0];
+        let len = d.length();
+        while next < marks.len() && len > 0.0 && marks[next] <= walked + len {
+            let t = (marks[next] - walked) / len;
+            out.push((w[0] + d * t, d / len));
+            next += 1;
+        }
+        walked += len;
+    }
+    out
+}
+
+/// Sentido de corte: en cada trazo, un punto donde empieza (con su número de orden) y flechas
+/// hacia donde avanza la herramienta.
+fn cut_direction(app: &OpenCraftCutterApp, painter: &Painter) {
+    let paths = &app.canvas.send.direction_paths;
+    if paths.is_empty() {
+        return;
+    }
+    let vp = app.canvas.viewport;
+    let ink = Color32::from_rgb(0x11, 0x18, 0x27);
+    let numbered = paths.len() <= MAX_NUMBERED;
+    for (i, (pts, closed)) in paths.iter().enumerate() {
+        let mut screen: Vec<egui::Pos2> = pts.iter().map(|p| vp.to_screen(*p)).collect();
+        let Some(start) = screen.first().copied() else {
+            continue;
+        };
+        if *closed {
+            screen.push(start);
+        }
+        for (at, dir) in arrow_positions(&screen) {
+            let n = egui::vec2(-dir.y, dir.x);
+            painter.add(egui::Shape::convex_polygon(
+                vec![
+                    at + dir * 6.0,
+                    at - dir * 5.0 + n * 4.5,
+                    at - dir * 5.0 - n * 4.5,
+                ],
+                ink,
+                Stroke::new(1.0, Color32::WHITE),
+            ));
+        }
+        painter.circle(start, 5.0, Color32::WHITE, Stroke::new(1.5, ink));
+        if numbered {
+            painter.text(
+                start + egui::vec2(7.0, -7.0),
+                egui::Align2::LEFT_BOTTOM,
+                (i + 1).to_string(),
+                egui::FontId::proportional(11.0),
+                ink,
+            );
         }
     }
 }

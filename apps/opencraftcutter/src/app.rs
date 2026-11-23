@@ -547,6 +547,7 @@ impl OpenCraftCutterApp {
         self.canvas.drag = None;
         self.canvas.polygon = None;
         self.canvas.pen = None;
+        self.canvas.pen_extends = None;
     }
 
     pub fn switch_tab(&mut self, i: usize) {

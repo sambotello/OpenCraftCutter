@@ -23,6 +23,78 @@ fn snap(app: &OpenCraftCutterApp, p: Point) -> Point {
     Point::new((p.x / step).round() * step, (p.y / step).round() * step)
 }
 
+/// ¿Dibuja la herramienta puntos que conviene ajustar a lo que ya hay?
+fn draws(tool: Tool) -> bool {
+    matches!(
+        tool,
+        Tool::Rect | Tool::Ellipse | Tool::Line | Tool::Polygon | Tool::Pen
+    )
+}
+
+/// Ajusta un punto que se está dibujando: a los nodos, bordes y centros de las demás formas, a
+/// la página y a las guías de regla (si el ajuste inteligente está activo), y a la retícula.
+/// Deja en `snap_guides` con qué se alineó. Con ⌘ pulsada no ajusta nada.
+fn snap_draw(app: &mut OpenCraftCutterApp, p: Point, command: bool) -> Point {
+    app.canvas.snap_guides.clear();
+    if command {
+        return p;
+    }
+    // La forma que se está creando no es un objetivo de sí misma.
+    let creating = match &app.canvas.drag {
+        Some(Drag::Create { id, .. }) => Some(*id),
+        _ => None,
+    };
+    let page = &app.doc.page;
+    let smart = page.smart_snap;
+    let grid = page
+        .snap_to_grid
+        .then(|| page.grid_spacing_mm / page.grid_divisions.max(1) as f64);
+    let (xs, ys) = if smart {
+        page.guide_lines()
+    } else {
+        Default::default()
+    };
+    let mut targets: Vec<Point> = Vec::new();
+    if smart {
+        targets.extend(
+            super::point_edit::drawing_snap_targets(app, creating)
+                .iter()
+                .copied(),
+        );
+        // Los puntos ya puestos del trazo en curso también alinean.
+        if let Some(nodes) = &app.canvas.pen {
+            let n = nodes.len();
+            let dragging = matches!(app.canvas.drag, Some(Drag::PenHandle));
+            targets.extend(
+                nodes
+                    .iter()
+                    .take(if dragging { n - 1 } else { n })
+                    .map(|n| n.p),
+            );
+        }
+        if let Some(poly) = &app.canvas.polygon {
+            targets.extend(poly.iter().copied());
+        }
+    }
+    let snapped = oc_core::snap::snap_point_with_lines(
+        p,
+        &targets,
+        &xs,
+        &ys,
+        super::point_edit::SNAP_PX / app.canvas.viewport.scale,
+        grid,
+        oc_core::snap::Axes::BOTH,
+    );
+    let to = snapped.point;
+    app.canvas.snap_guides.extend(
+        [snapped.guide_x, snapped.guide_y]
+            .into_iter()
+            .flatten()
+            .map(|t| (t, to)),
+    );
+    to
+}
+
 fn new_shape(app: &mut OpenCraftCutterApp, name: &str, rect: Rect, kind: ShapeKind) -> Shape {
     let n = app
         .doc
@@ -115,6 +187,7 @@ pub const PEN_CLOSE_PX: f64 = 8.0;
 /// menos de dos puntos no queda nada.
 pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
     app.canvas.drag = None;
+    let extends = app.canvas.pen_extends.take();
     let Some(mut nodes) = app.canvas.pen.take() else {
         return;
     };
@@ -131,15 +204,65 @@ pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
             last.h_out = None;
         }
     }
+    let path = oc_core::nodes::NodePath { nodes, closed };
+    // Continuación de un trazado que ya existía: se sustituye en su forma.
+    if let Some((id, si)) = extends {
+        let paths = app.doc.shape(id).map(|s| s.world_edit_paths());
+        if let Some(mut paths) = paths.filter(|p| si < p.len()) {
+            if paths[si] == path {
+                return; // No se añadió nada.
+            }
+            paths[si] = path;
+            app.commit();
+            if let Some(s) = app.doc.shape_mut(id) {
+                s.set_world_node_paths(&paths);
+            }
+            app.doc.selected = vec![id];
+            return;
+        }
+    }
     let kind = ShapeKind::Path {
         subpaths: Vec::new(),
         fill_rule: Default::default(),
     };
     let mut s = new_shape(app, "Trazo", Rect::ZERO, kind);
-    s.set_world_node_paths(&[oc_core::nodes::NodePath { nodes, closed }]);
+    s.set_world_node_paths(&[path]);
     app.commit();
     let id = app.doc.add_shape(s);
     app.doc.selected = vec![id];
+}
+
+/// Extremo libre de un trazado abierto bajo el puntero, para continuarlo con la Pluma:
+/// (forma, subtrazo, nodos ordenados de modo que ese extremo quede el último). Solo trazos sin
+/// girar ni bloquear.
+fn open_end_at(
+    app: &OpenCraftCutterApp,
+    p: Point,
+) -> Option<(u64, usize, Vec<oc_core::nodes::Node>)> {
+    let tol = PEN_CLOSE_PX / app.canvas.viewport.scale;
+    for s in app.doc.shapes.iter().rev() {
+        let editable = s.visible
+            && !s.locked
+            && s.rotation == 0.0
+            && s.punch_mm.is_none()
+            && matches!(s.kind, ShapeKind::Path { .. });
+        if !editable {
+            continue;
+        }
+        for (si, np) in s.world_edit_paths().into_iter().enumerate() {
+            if np.closed || np.nodes.len() < 2 {
+                continue;
+            }
+            let last = np.nodes.len() - 1;
+            if np.nodes[last].p.distance(p) <= tol {
+                return Some((s.id, si, np.nodes));
+            }
+            if np.nodes[0].p.distance(p) <= tol {
+                return Some((s.id, si, np.reversed().nodes));
+            }
+        }
+    }
+    None
 }
 
 fn create_text(app: &mut OpenCraftCutterApp, _ctx: &egui::Context, at: Point) {
@@ -190,6 +313,19 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
     // Cursor en mm para reglas y barra de estado
     let hover = response.hover_pos().or(response.interact_pointer_pos());
     app.canvas.cursor_mm = hover.map(|p| vp.to_world(p));
+    // Con una herramienta de dibujo, el puntero ya ajustado (para las vistas previas y las
+    // guías, antes de hacer clic).
+    let command = ctx.input(|i| i.modifiers.command);
+    let drawing = draws(tool) && app.canvas.editing_text.is_none();
+    app.canvas.snap_cursor = None;
+    if drawing {
+        app.canvas.snap_cursor = app.canvas.cursor_mm.map(|c| snap_draw(app, c, command));
+        if app.canvas.snap_cursor.is_none() {
+            app.canvas.snap_guides.clear();
+        }
+    } else if app.canvas.drag.is_none() {
+        app.canvas.snap_guides.clear();
+    }
 
     // Rueda: ⌘/Ctrl (o pinch) = zoom; resto = desplazamiento.
     if response.hovered() {
@@ -243,6 +379,17 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
             _ => {
                 if let Some(pos) = hover {
                     match handle_at(app, pos) {
+                        None if tool == Tool::Select
+                            && shape_at(app, vp.to_world(pos)).is_none()
+                            && super::guides::guide_at(app, pos).is_some() =>
+                        {
+                            let i = super::guides::guide_at(app, pos).unwrap_or(0);
+                            if app.doc.page.guides.get(i).is_some_and(|g| g.vertical) {
+                                CursorIcon::ResizeHorizontal
+                            } else {
+                                CursorIcon::ResizeVertical
+                            }
+                        }
                         Some(None) => CursorIcon::Grab,
                         Some(Some(h)) => match h {
                             Handle::NW | Handle::SE => CursorIcon::ResizeNwSe,
@@ -356,7 +503,11 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
             return;
         };
         let p = vp.to_world(pos);
-        let sp = snap(app, p);
+        let sp = if drawing {
+            snap_draw(app, p, command)
+        } else {
+            snap(app, p)
+        };
         if middle_down || tool == Tool::Pan {
             app.canvas.drag = Some(Drag::Pan);
             return;
@@ -532,6 +683,12 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                         originals,
                         committed: false,
                     });
+                } else if let Some(index) = super::guides::guide_at(app, pos) {
+                    // En vacío y sobre una guía de regla: se mueve la guía.
+                    app.canvas.drag = Some(Drag::Guide {
+                        index,
+                        committed: false,
+                    });
                 } else {
                     if !shift {
                         app.doc.selected.clear();
@@ -602,6 +759,16 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 }
             }
             Tool::Pen => {
+                // Empezar sobre el extremo de un trazado abierto lo continúa.
+                if app.canvas.pen.is_none() {
+                    if let Some((id, si, nodes)) = open_end_at(app, p) {
+                        app.canvas.pen = Some(nodes);
+                        app.canvas.pen_extends = Some((id, si));
+                        app.doc.selected = vec![id];
+                        app.canvas.drag = Some(Drag::PenHandle);
+                        return;
+                    }
+                }
                 let nodes = app.canvas.pen.get_or_insert_with(Vec::new);
                 let on_first = nodes.len() >= 3 && nodes[0].p.distance(p) * vp.scale < PEN_CLOSE_PX;
                 if on_first {
@@ -643,7 +810,11 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
         return;
     };
     let p = vp.to_world(pos);
-    let sp = snap(app, p);
+    let sp = if drawing {
+        snap_draw(app, p, command)
+    } else {
+        snap(app, p)
+    };
     let dragging = response.dragged();
 
     if dragging {
@@ -843,9 +1014,16 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 if !ctx.input(|i| i.modifiers.command) {
                     let page = &app.doc.page;
                     let none: &[Point] = &[];
-                    let snapped = oc_core::snap::snap_point(
+                    let (xs, ys) = if page.smart_snap {
+                        page.guide_lines()
+                    } else {
+                        Default::default()
+                    };
+                    let snapped = oc_core::snap::snap_point_with_lines(
                         to,
                         if page.smart_snap { &targets } else { none },
+                        &xs,
+                        &ys,
                         super::point_edit::SNAP_PX / vp.scale,
                         page.snap_to_grid
                             .then(|| page.grid_spacing_mm / page.grid_divisions.max(1) as f64),
@@ -898,6 +1076,17 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     out,
                     committed,
                 });
+            }
+            Drag::Guide {
+                index,
+                mut committed,
+            } => {
+                if !committed {
+                    app.commit();
+                    committed = true;
+                }
+                super::guides::move_guide(app, index, p);
+                app.canvas.drag = Some(Drag::Guide { index, committed });
             }
             Drag::PenHandle => {
                 // Arrastrar tras poner el nodo le saca dos manejadores simétricos: el de
@@ -1018,6 +1207,11 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
             Drag::Freehand { id, points } if points.len() < 2 => {
                 cancel_add(app, id);
             }
+            // Soltada fuera del lienzo (sobre la regla): se borra.
+            Drag::Guide {
+                index,
+                committed: true,
+            } => super::guides::drop_guide(app, index, pos),
             Drag::Knife { start, end } => apply_knife(app, start, end),
             Drag::Erase { path } => apply_eraser(app, &path),
             _ => {}
@@ -1193,6 +1387,17 @@ fn smart_snap_delta(
             hi: w,
         })
         .into();
+    let (gx, gy) = page.guide_lines();
+    xs.extend(gx.into_iter().map(|value| SnapTarget {
+        value,
+        lo: 0.0,
+        hi: h,
+    }));
+    ys.extend(gy.into_iter().map(|value| SnapTarget {
+        value,
+        lo: 0.0,
+        hi: w,
+    }));
     if !page.smart_snap_within_media {
         let moving_ids: std::collections::HashSet<u64> = originals.iter().map(|s| s.id).collect();
         for s in app
