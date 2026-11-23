@@ -63,6 +63,34 @@ pub struct PageSetup {
     pub grid_secondary_color: crate::Color,
     /// Marcas de registro de Imprimir y cortar.
     pub reg_marks: crate::regmarks::RegMarks,
+    /// Guías de regla: líneas fijas a las que se ajusta lo que se dibuja o se mueve.
+    pub guides: Vec<Guide>,
+    /// Mostrar (y usar) las guías de regla.
+    pub show_guides: bool,
+}
+
+/// Guía de regla: una recta vertical (`pos` es su x) u horizontal (su y), en mm.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Guide {
+    pub vertical: bool,
+    pub pos: f64,
+}
+
+impl PageSetup {
+    /// Guías activas, separadas por dirección: (x de las verticales, y de las horizontales).
+    pub fn guide_lines(&self) -> (Vec<f64>, Vec<f64>) {
+        if !self.show_guides {
+            return (Vec::new(), Vec::new());
+        }
+        let of = |vertical: bool| {
+            self.guides
+                .iter()
+                .filter(|g| g.vertical == vertical)
+                .map(|g| g.pos)
+                .collect()
+        };
+        (of(true), of(false))
+    }
 }
 
 impl Default for PageSetup {
@@ -94,6 +122,8 @@ impl Default for PageSetup {
             grid_primary_color: crate::Color::rgb(0xd8, 0xd8, 0xd8),
             grid_secondary_color: crate::Color::rgb(0xec, 0xec, 0xec),
             reg_marks: Default::default(),
+            guides: Vec::new(),
+            show_guides: true,
         }
     }
 }

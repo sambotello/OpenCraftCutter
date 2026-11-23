@@ -78,6 +78,37 @@ pub const SNAP_PX: f64 = 7.0;
 /// A partir de este número de nodos, una forma ajena solo aporta su caja como objetivo.
 const SNAP_MAX_NODES: usize = 400;
 
+/// Esquinas, centros de lado y centro de la página.
+fn page_snap_points(page: &oc_core::document::PageSetup, out: &mut Vec<Point>) {
+    for x in [0.0, page.width_mm / 2.0, page.width_mm] {
+        for y in [0.0, page.height_mm / 2.0, page.height_mm] {
+            out.push(Point::new(x, y));
+        }
+    }
+}
+
+/// Puntos de ajuste que aporta una forma: los nueve de su caja y, si es un trazo no muy
+/// grande, sus nodos.
+fn shape_snap_points(s: &Shape, out: &mut Vec<Point>) {
+    let b = oc_core::edit::shape_bounds(s);
+    for x in [b.x0, b.center().x, b.x1] {
+        for y in [b.y0, b.center().y, b.y1] {
+            out.push(Point::new(x, y));
+        }
+    }
+    if matches!(s.kind, ShapeKind::Path { .. }) {
+        let rot = oc_core::edit::rotation_about(s.center(), s.rotation);
+        let nodes = s.world_node_paths();
+        if nodes.iter().map(|np| np.nodes.len()).sum::<usize>() <= SNAP_MAX_NODES {
+            out.extend(
+                nodes
+                    .iter()
+                    .flat_map(|np| np.nodes.iter().map(|n| rot * n.p)),
+            );
+        }
+    }
+}
+
 /// Puntos a los que se ajusta un nodo que se arrastra: los demás nodos del trazo en edición
 /// (salvo los que se mueven con él), los nodos y cajas de las otras formas visibles y los
 /// bordes y el centro de la página.
@@ -94,33 +125,57 @@ pub fn snap_targets(app: &OpenCraftCutterApp, moving: &[(usize, usize)]) -> Vec<
         }
     }
     let page = &app.doc.page;
-    for x in [0.0, page.width_mm / 2.0, page.width_mm] {
-        for y in [0.0, page.height_mm / 2.0, page.height_mm] {
-            out.push(Point::new(x, y));
-        }
-    }
+    page_snap_points(page, &mut out);
     if page.smart_snap_within_media {
         return out;
     }
     for s in app.doc.shapes.iter().filter(|s| s.visible && s.id != id) {
-        let b = oc_core::edit::shape_bounds(s);
-        for x in [b.x0, b.center().x, b.x1] {
-            for y in [b.y0, b.center().y, b.y1] {
-                out.push(Point::new(x, y));
-            }
-        }
-        if matches!(s.kind, ShapeKind::Path { .. }) {
-            let rot = oc_core::edit::rotation_about(s.center(), s.rotation);
-            let nodes = s.world_node_paths();
-            if nodes.iter().map(|np| np.nodes.len()).sum::<usize>() <= SNAP_MAX_NODES {
-                out.extend(
-                    nodes
-                        .iter()
-                        .flat_map(|np| np.nodes.iter().map(|n| rot * n.p)),
-                );
-            }
+        shape_snap_points(s, &mut out);
+    }
+    out
+}
+
+/// Puntos a los que se ajusta lo que se dibuja (línea, polígono, pluma, rectángulo…): la
+/// página y todas las formas visibles menos `exclude` (la que se está creando). Se guardan
+/// mientras el documento no cambie, para no recalcularlos en cada fotograma.
+pub fn drawing_snap_targets(
+    app: &mut OpenCraftCutterApp,
+    exclude: Option<u64>,
+) -> std::sync::Arc<Vec<Point>> {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    let page = &app.doc.page;
+    exclude.hash(&mut h);
+    page.smart_snap_within_media.hash(&mut h);
+    for v in [page.width_mm, page.height_mm] {
+        v.to_bits().hash(&mut h);
+    }
+    for s in app.doc.shapes.iter().filter(|s| s.visible) {
+        s.id.hash(&mut h);
+        for v in [s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, s.rotation] {
+            v.to_bits().hash(&mut h);
         }
     }
+    let key = h.finish();
+    if let Some((k, cached)) = &app.canvas.draw_snap {
+        if *k == key {
+            return cached.clone();
+        }
+    }
+    let mut out = Vec::new();
+    page_snap_points(page, &mut out);
+    if !page.smart_snap_within_media {
+        for s in app
+            .doc
+            .shapes
+            .iter()
+            .filter(|s| s.visible && Some(s.id) != exclude)
+        {
+            shape_snap_points(s, &mut out);
+        }
+    }
+    let out = std::sync::Arc::new(out);
+    app.canvas.draw_snap = Some((key, out.clone()));
     out
 }
 

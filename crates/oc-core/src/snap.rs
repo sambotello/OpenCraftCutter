@@ -29,9 +29,30 @@ impl Axes {
 /// ese eje si está a `tol` o menos (a igual distancia, el más próximo en el otro eje). Donde no
 /// hay objetivo y `grid` es un paso de retícula, redondea a la retícula.
 pub fn snap_point(p: Point, targets: &[Point], tol: f64, grid: Option<f64>, axes: Axes) -> Snapped {
-    let best = |along: fn(Point) -> f64, across: fn(Point) -> f64| -> Option<Point> {
+    snap_point_with_lines(p, targets, &[], &[], tol, grid, axes)
+}
+
+/// Como [`snap_point`], con líneas guía además de puntos: `xs` son guías verticales (su x) e
+/// `ys` horizontales (su y). Una guía equivale a un objetivo justo a la altura del punto.
+pub fn snap_point_with_lines(
+    p: Point,
+    targets: &[Point],
+    xs: &[f64],
+    ys: &[f64],
+    tol: f64,
+    grid: Option<f64>,
+    axes: Axes,
+) -> Snapped {
+    let on_lines: Vec<Point> = xs
+        .iter()
+        .map(|x| Point::new(*x, p.y))
+        .chain(ys.iter().map(|y| Point::new(p.x, *y)))
+        .collect();
+    let (x_lines, y_lines) = on_lines.split_at(xs.len());
+    let best = |along: fn(Point) -> f64, across: fn(Point) -> f64, lines: &[Point]| {
         targets
             .iter()
+            .chain(lines)
             .filter(|t| (along(**t) - along(p)).abs() <= tol)
             .min_by(|a, b| {
                 let key =
@@ -45,8 +66,16 @@ pub fn snap_point(p: Point, targets: &[Point], tol: f64, grid: Option<f64>, axes
         Some(step) if step > 0.0 => (v / step).round() * step,
         _ => v,
     };
-    let gx = if axes.x { best(|t| t.x, |t| t.y) } else { None };
-    let gy = if axes.y { best(|t| t.y, |t| t.x) } else { None };
+    let gx = if axes.x {
+        best(|t| t.x, |t| t.y, x_lines)
+    } else {
+        None
+    };
+    let gy = if axes.y {
+        best(|t| t.y, |t| t.x, y_lines)
+    } else {
+        None
+    };
     let x = match gx {
         Some(t) => t.x,
         None if axes.x => round(p.x),
@@ -137,6 +166,27 @@ mod tests {
             Axes { x: false, y: true },
         );
         assert_eq!(s.point, Point::new(10.4, 5.0));
+    }
+
+    #[test]
+    fn guide_lines_snap_one_axis_each() {
+        let p = Point::new(50.3, 79.8);
+        let s = snap_point_with_lines(p, &[], &[50.0], &[80.0, 120.0], 0.5, None, Axes::BOTH);
+        assert_eq!(s.point, Point::new(50.0, 80.0));
+        // Una guía vertical no ajusta la y, ni una lejana ajusta nada.
+        let s = snap_point_with_lines(p, &[], &[50.0], &[120.0], 0.5, None, Axes::BOTH);
+        assert_eq!(s.point, Point::new(50.0, 79.8));
+        // Con un punto y una guía a la misma distancia en x, gana la guía (está a su altura).
+        let s = snap_point_with_lines(
+            Point::new(50.0, 79.8),
+            &[Point::new(50.2, 10.0)],
+            &[49.8],
+            &[],
+            0.5,
+            None,
+            Axes::BOTH,
+        );
+        assert_eq!(s.point.x, 49.8);
     }
 
     #[test]

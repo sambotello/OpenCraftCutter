@@ -165,6 +165,10 @@ pub struct CanvasState {
     pub text_outlines: std::collections::HashMap<ShapeId, crate::text::Outlines>,
     /// Guías del ajuste en curso en Editar puntos: (objetivo, punto ajustado), en mm.
     pub snap_guides: Vec<(Point, Point)>,
+    /// Objetivos de ajuste para dibujar, con la huella del documento con que se calcularon.
+    pub draw_snap: Option<(u64, std::sync::Arc<Vec<Point>>)>,
+    /// Puntero ya ajustado mientras se usa una herramienta de dibujo (para las vistas previas).
+    pub snap_cursor: Option<Point>,
     /// Guías del ajuste inteligente al mover formas: segmentos en mm.
     pub move_guides: Vec<(Point, Point)>,
     /// Dónde se abrió el último menú contextual del lienzo.
@@ -202,6 +206,8 @@ impl Default for CanvasState {
             eraser_width_mm: 3.0,
             text_outlines: std::collections::HashMap::new(),
             snap_guides: Vec::new(),
+            draw_snap: None,
+            snap_cursor: None,
             move_guides: Vec::new(),
             context: None,
         }

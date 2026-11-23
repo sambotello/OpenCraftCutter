@@ -3495,3 +3495,74 @@ fn pen_continues_an_open_path_from_its_end() {
     h.run_steps(3);
     assert!(!h.state().history.can_undo());
 }
+
+// ---------------------------------------------------------------- Ajuste al dibujar
+
+#[test]
+fn drawing_tools_snap_to_other_shapes() {
+    // Un rectángulo de (40, 40) a (70, 70) como referencia.
+    let setup = |tool: crate::app::Tool, smart: bool| {
+        let mut h = app_harness();
+        let mut r = rect(40.0, RED);
+        r.rect = Rect::new(40.0, 40.0, 70.0, 70.0);
+        h.state_mut().doc.add_shape(r);
+        h.state_mut().doc.page.smart_snap = smart;
+        h.state_mut().tool = tool;
+        h.state_mut().panel = None;
+        h.run_steps(3);
+        h
+    };
+    // Línea que acaba cerca de la esquina (70, 70): con ajuste cae justo encima.
+    let mut h = setup(crate::app::Tool::Line, true);
+    drag_mm(&mut h, (120.0, 120.0), (70.6, 70.5), egui::Modifiers::NONE);
+    let np = h.state().doc.shapes[1].world_node_paths()[0].clone();
+    assert_eq!(np.nodes[1].p, kurbo::Point::new(70.0, 70.0), "{np:?}");
+    assert!(h.state().canvas.snap_guides.is_empty() || h.state().canvas.drag.is_none());
+    // Sin ajuste inteligente queda donde se soltó.
+    let mut h = setup(crate::app::Tool::Line, false);
+    drag_mm(&mut h, (120.0, 120.0), (70.6, 70.5), egui::Modifiers::NONE);
+    let end = h.state().doc.shapes[1].world_node_paths()[0].nodes[1].p;
+    assert!(
+        (end.x - 70.6).abs() < 0.2 && end != kurbo::Point::new(70.0, 70.0),
+        "{end:?}"
+    );
+    // Con ⌘ pulsada tampoco se ajusta.
+    let mut h = setup(crate::app::Tool::Line, true);
+    drag_mm(
+        &mut h,
+        (120.0, 120.0),
+        (70.6, 70.5),
+        egui::Modifiers::COMMAND,
+    );
+    let end = h.state().doc.shapes[1].world_node_paths()[0].nodes[1].p;
+    assert!(end != kurbo::Point::new(70.0, 70.0), "{end:?}");
+    // Pluma: el punto se alinea con el borde del rectángulo y con sus propios puntos.
+    let mut h = setup(crate::app::Tool::Pen, true);
+    click_mm(&mut h, (100.0, 40.4));
+    click_mm(&mut h, (130.0, 90.0));
+    click_mm(&mut h, (100.3, 120.0));
+    let nodes = h.state().canvas.pen.clone().unwrap();
+    assert_eq!(
+        nodes[0].p.y, 40.0,
+        "a la altura del borde superior del rectángulo"
+    );
+    assert_eq!(
+        nodes[2].p.x, nodes[0].p.x,
+        "en vertical con su primer punto"
+    );
+    // Antes de hacer clic ya se ven las guías: el puntero se muestra ajustado.
+    let pos = h
+        .state()
+        .canvas
+        .viewport
+        .to_screen(kurbo::Point::new(150.0, 70.3));
+    h.hover_at(pos);
+    h.run_steps(2);
+    assert_eq!(h.state().canvas.snap_cursor.map(|c| c.y), Some(70.0));
+    assert!(!h.state().canvas.snap_guides.is_empty());
+    // Rectángulo: la esquina que se arrastra se ajusta a la del otro.
+    let mut h = setup(crate::app::Tool::Rect, true);
+    drag_mm(&mut h, (120.0, 120.0), (70.5, 70.4), egui::Modifiers::NONE);
+    let r = h.state().doc.shapes[1].rect;
+    assert_eq!((r.x0, r.y0), (70.0, 70.0), "{r:?}");
+}
