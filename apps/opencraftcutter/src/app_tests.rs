@@ -3046,3 +3046,51 @@ fn context_menu_lists_the_shapes_under_the_pointer() {
     assert_eq!(h.state().doc.selected, vec![back]);
     assert!(shows(&h, "Duplicar") && !shows(&h, "Seleccionar debajo"));
 }
+
+// ---------------------------------------------------------------- Guías al mover formas
+
+#[test]
+fn moving_a_shape_shows_what_it_snapped_to() {
+    let mut h = two_rects();
+    h.state_mut().doc.page.smart_snap = true;
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    // Arrastre a medias: el segundo rectángulo (de y 40 a 70) baja hasta casi alinear su borde
+    // superior con el inferior del primero (y = 70).
+    let vp = h.state().canvas.viewport;
+    let from = vp.to_screen(kurbo::Point::new(135.0, 40.0));
+    let to = vp.to_screen(kurbo::Point::new(137.0, 69.3));
+    h.hover_at(from);
+    h.step();
+    h.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.step();
+    for k in 1..=8 {
+        h.hover_at(from + (to - from) * (k as f32 / 8.0));
+        h.step();
+    }
+    let a = h.state();
+    let moved = a.doc.shape(ids[1]).unwrap().rect;
+    assert_eq!(moved.y0, 70.0, "ajustado al borde del otro rectángulo");
+    // Una guía horizontal en y = 70 que cubre los dos rectángulos.
+    let guide = a
+        .canvas
+        .move_guides
+        .iter()
+        .find(|(p, q)| p.y == 70.0 && q.y == 70.0)
+        .unwrap_or_else(|| panic!("sin guía: {:?}", a.canvas.move_guides));
+    assert!(guide.0.x <= 40.0 && guide.1.x >= moved.x1, "{guide:?}");
+    // Al soltar, las guías desaparecen.
+    h.event(egui::Event::PointerButton {
+        pos: to,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(3);
+    assert!(h.state().canvas.move_guides.is_empty());
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().rect.y0, 70.0);
+}

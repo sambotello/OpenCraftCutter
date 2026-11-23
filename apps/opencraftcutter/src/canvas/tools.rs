@@ -607,13 +607,18 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                         d.x = 0.0;
                     }
                 }
+                app.canvas.move_guides.clear();
                 if app.doc.page.smart_snap {
-                    d = smart_snap_delta(app, &originals, d);
+                    let (snapped, guides) = smart_snap_delta(app, &originals, d);
+                    d = snapped;
+                    app.canvas.move_guides = guides;
                 }
                 if app.doc.page.snap_to_grid {
                     let step =
                         app.doc.page.grid_spacing_mm / app.doc.page.grid_divisions.max(1) as f64;
                     d = Vec2::new((d.x / step).round() * step, (d.y / step).round() * step);
+                    // La retícula manda: las guías del ajuste ya no describen dónde quedó.
+                    app.canvas.move_guides.clear();
                 }
                 if !committed {
                     app.commit();
@@ -851,6 +856,7 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
     if response.drag_stopped() || (!response.is_pointer_button_down_on() && !dragging) {
         app.canvas.drag = None;
         app.canvas.snap_guides.clear();
+        app.canvas.move_guides.clear();
         match drag {
             Drag::NodeMarquee { additive, .. } => {
                 if let Some(m) = app.canvas.marquee.take() {
@@ -1071,18 +1077,43 @@ fn apply_eraser(app: &mut OpenCraftCutterApp, path: &[Point]) {
     }
 }
 
-/// Vértice del trazo en edición bajo el puntero (en px).
+/// Borde o centro al que se puede alinear la selección: su coordenada en el eje que se ajusta
+/// y lo que ocupa en el otro (para dibujar la guía).
+struct SnapTarget {
+    value: f64,
+    lo: f64,
+    hi: f64,
+}
+
 /// Ajuste inteligente: corrige el desplazamiento para que los bordes o el centro de la selección
 /// caigan sobre bordes/centros de la página (y de otros objetos, si no se limita a los medios).
-fn smart_snap_delta(app: &OpenCraftCutterApp, originals: &[Shape], d: Vec2) -> Vec2 {
+/// Devuelve también las guías (mm) que muestran con qué se alineó.
+fn smart_snap_delta(
+    app: &OpenCraftCutterApp,
+    originals: &[Shape],
+    d: Vec2,
+) -> (Vec2, Vec<(Point, Point)>) {
     let Some(b) = selection_bounds(originals.iter()) else {
-        return d;
+        return (d, Vec::new());
     };
     let page = &app.doc.page;
     let tol = page.snap_tolerance_mm.max(0.0);
     let moving = b + d;
-    let mut xs = vec![0.0, page.width_mm / 2.0, page.width_mm];
-    let mut ys = vec![0.0, page.height_mm / 2.0, page.height_mm];
+    let (w, h) = (page.width_mm, page.height_mm);
+    let mut xs: Vec<SnapTarget> = [0.0, w / 2.0, w]
+        .map(|value| SnapTarget {
+            value,
+            lo: 0.0,
+            hi: h,
+        })
+        .into();
+    let mut ys: Vec<SnapTarget> = [0.0, h / 2.0, h]
+        .map(|value| SnapTarget {
+            value,
+            lo: 0.0,
+            hi: w,
+        })
+        .into();
     if !page.smart_snap_within_media {
         let moving_ids: std::collections::HashSet<u64> = originals.iter().map(|s| s.id).collect();
         for s in app
@@ -1092,23 +1123,49 @@ fn smart_snap_delta(app: &OpenCraftCutterApp, originals: &[Shape], d: Vec2) -> V
             .filter(|s| s.visible && !moving_ids.contains(&s.id))
         {
             let sb = shape_bounds(s);
-            xs.extend([sb.x0, sb.center().x, sb.x1]);
-            ys.extend([sb.y0, sb.center().y, sb.y1]);
+            xs.extend([sb.x0, sb.center().x, sb.x1].map(|value| SnapTarget {
+                value,
+                lo: sb.y0,
+                hi: sb.y1,
+            }));
+            ys.extend([sb.y0, sb.center().y, sb.y1].map(|value| SnapTarget {
+                value,
+                lo: sb.x0,
+                hi: sb.x1,
+            }));
         }
     }
-    let best = |edges: [f64; 3], targets: &[f64]| -> Option<f64> {
-        let mut best: Option<f64> = None;
+    let best = |edges: [f64; 3], targets: &[SnapTarget]| -> Option<(f64, usize)> {
+        let mut best: Option<(f64, usize)> = None;
         for e in edges {
-            for t in targets {
-                let diff = t - e;
-                if diff.abs() <= tol && best.is_none_or(|b: f64| diff.abs() < b.abs()) {
-                    best = Some(diff);
+            for (i, t) in targets.iter().enumerate() {
+                let diff = t.value - e;
+                if diff.abs() <= tol && best.is_none_or(|(b, _)| diff.abs() < b.abs()) {
+                    best = Some((diff, i));
                 }
             }
         }
         best
     };
-    let dx = best([moving.x0, moving.center().x, moving.x1], &xs).unwrap_or(0.0);
-    let dy = best([moving.y0, moving.center().y, moving.y1], &ys).unwrap_or(0.0);
-    Vec2::new(d.x + dx, d.y + dy)
+    let bx = best([moving.x0, moving.center().x, moving.x1], &xs);
+    let by = best([moving.y0, moving.center().y, moving.y1], &ys);
+    let out = Vec2::new(d.x + bx.map_or(0.0, |b| b.0), d.y + by.map_or(0.0, |b| b.0));
+    // Cada guía cubre el objetivo y la selección ya colocada.
+    let placed = b + out;
+    let mut guides = Vec::new();
+    if let Some((_, i)) = bx {
+        let t = &xs[i];
+        guides.push((
+            Point::new(t.value, t.lo.min(placed.y0)),
+            Point::new(t.value, t.hi.max(placed.y1)),
+        ));
+    }
+    if let Some((_, i)) = by {
+        let t = &ys[i];
+        guides.push((
+            Point::new(t.lo.min(placed.x0), t.value),
+            Point::new(t.hi.max(placed.x1), t.value),
+        ));
+    }
+    (out, guides)
 }

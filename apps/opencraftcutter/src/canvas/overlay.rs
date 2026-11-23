@@ -203,6 +203,13 @@ pub fn draw_overlay(app: &OpenCraftCutterApp, painter: &Painter) {
             }
         }
     }
+    // Guías del ajuste al mover formas: el borde o centro con el que se alineó la selección.
+    for (a, b) in &app.canvas.move_guides {
+        painter.line_segment(
+            [vp.to_screen(*a), vp.to_screen(*b)],
+            Stroke::new(1.0, SNAP_GUIDE),
+        );
+    }
     if let Some(m) = app.canvas.marquee {
         let r = vp.rect_to_screen(m);
         painter.rect(
