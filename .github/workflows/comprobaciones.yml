@@ -7,7 +7,7 @@
 #   por reglas que el cambio no tocó. Al subirla aquí, pasar antes scripts/check.sh con ella.
 name: Comprobaciones
 
-on:
+"on":
   pull_request:
   push:
     branches: [main]
