@@ -2634,10 +2634,76 @@ fn paste_an_image_from_the_clipboard() {
     // Datos que no son una imagen: no se añade nada.
     a.paste_content(&ctx, Pasted::Image(b"esto no es una imagen".to_vec()));
     assert_eq!(a.doc.shapes.len(), 1);
-    // Vectores solo en PDF: se avisa y no se añade nada.
-    a.paste_content(&ctx, Pasted::PdfOnly);
-    assert_eq!(a.doc.shapes.len(), 1);
+}
+
+/// PDF de una página con un rectángulo de 60 × 30 mm con línea de 1 pt.
+fn pdf_with_a_rect() -> Vec<u8> {
+    let mut doc = oc_core::Document::default();
+    let mut s = rect(20.0, RED);
+    s.rect = Rect::new(20.0, 40.0, 80.0, 70.0);
+    s.stroke.width_pt = 1.0;
+    doc.add_shape(s);
+    oc_svg::print_pdf(&doc).expect("PDF")
+}
+
+#[test]
+fn paste_vectors_copied_as_pdf() {
+    // Lo que copian por defecto los programas vectoriales: PDF (a veces con una vista previa).
+    let mut a = app();
+    let ctx = egui::Context::default();
+    a.paste_content(
+        &ctx,
+        Pasted::Pdf {
+            pdf: pdf_with_a_rect(),
+            image: Some(png_bytes(64, 64)),
+        },
+    );
+    assert!(!a.doc.shapes.is_empty());
+    assert!(
+        a.doc.shapes.iter().all(|s| !s.is_image()),
+        "entran los trazados, no la vista previa"
+    );
+    assert!(
+        a.doc
+            .shapes
+            .iter()
+            .any(|s| (s.rect.width() - 60.0).abs() < 0.5 && (s.rect.height() - 30.0).abs() < 0.5),
+        "a tamaño real"
+    );
+    assert_eq!(a.doc.selected.len(), a.doc.shapes.len());
+    let n = a.doc.shapes.len();
+    // Un PDF que no se puede leer: se pega la imagen que venía con él…
+    a.paste_content(
+        &ctx,
+        Pasted::Pdf {
+            pdf: b"no es un PDF".to_vec(),
+            image: Some(png_bytes(64, 64)),
+        },
+    );
+    assert_eq!(a.doc.shapes.len(), n + 1);
+    assert!(a.doc.shapes.last().unwrap().is_image());
+    // …y si no venía ninguna, se avisa y no se añade nada.
+    a.paste_content(
+        &ctx,
+        Pasted::Pdf {
+            pdf: b"no es un PDF".to_vec(),
+            image: None,
+        },
+    );
+    assert_eq!(a.doc.shapes.len(), n + 1);
     assert!(a.toast.as_ref().is_some_and(|t| t.0.contains("PDF")));
+}
+
+#[test]
+fn pdf_files_can_be_dropped_or_pasted() {
+    let mut h = app_harness();
+    let pdf = temp("vectores.pdf");
+    std::fs::write(&pdf, pdf_with_a_rect()).unwrap();
+    assert!(crate::file_drop::supported(&pdf));
+    let ctx = h.ctx.clone();
+    h.state_mut().paste_content(&ctx, Pasted::Files(vec![pdf]));
+    let a = h.state();
+    assert!(!a.doc.shapes.is_empty() && a.doc.shapes.iter().all(|s| !s.is_image()));
 }
 
 #[test]
@@ -2702,7 +2768,11 @@ fn portapapeles_real() {
         Some(Pasted::Svg(t)) => format!("SVG de {} caracteres", t.len()),
         Some(Pasted::Image(b)) => format!("imagen de {} bytes", b.len()),
         Some(Pasted::Files(f)) => format!("archivos: {f:?}"),
-        Some(Pasted::PdfOnly) => "solo PDF".into(),
+        Some(Pasted::Pdf { pdf, image }) => format!(
+            "PDF de {} bytes{}",
+            pdf.len(),
+            if image.is_some() { " (con imagen)" } else { "" }
+        ),
         None => "nada que pegar".into(),
     };
     eprintln!(
