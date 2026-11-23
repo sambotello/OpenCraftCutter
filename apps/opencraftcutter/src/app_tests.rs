@@ -3699,3 +3699,68 @@ fn drawing_and_moving_snap_to_ruler_guides() {
     let doc = oc_core::Document::from_json(&h.state().doc.to_json()).unwrap();
     assert_eq!(doc.page.guides.len(), 2);
 }
+
+// ---------------------------------------------------------------- Sentido de corte
+
+#[test]
+fn send_preview_shows_cut_direction_and_order() {
+    let mut h = two_rects();
+    h.state_mut().workspace = crate::app::Workspace::Send;
+    h.run_steps(4);
+    assert!(
+        h.state().canvas.send.direction_paths.is_empty(),
+        "apagado por defecto"
+    );
+    click(&mut h, "Mostrar el sentido de corte");
+    h.run_steps(3);
+    let a = h.state();
+    assert!(a.canvas.send.show_direction);
+    // Un trazo por rectángulo, en el orden y con el punto de inicio que se enviarán.
+    let paths = a.canvas.send.direction_paths.clone();
+    assert_eq!(paths.len(), 2, "{paths:?}");
+    assert!(paths.iter().all(|(pts, closed)| *closed && pts.len() >= 4));
+    // Invertir el sentido de un trazado cambia hacia dónde se corta.
+    let before = paths[0].0.clone();
+    let id = h.state().doc.shapes[0].id;
+    {
+        let a = h.state_mut();
+        a.workspace = crate::app::Workspace::Design;
+        a.doc.selected = vec![id];
+        a.object_run(Cmd::ToPath);
+        let id = a.doc.selected[0];
+        crate::canvas::point_edit::begin(a, id);
+        a.point_select(0, 0, false);
+        a.point_reverse();
+        a.canvas.point_edit = None;
+        a.workspace = crate::app::Workspace::Send;
+    }
+    h.run_steps(4);
+    let after = h.state().canvas.send.direction_paths.clone();
+    let same_points = |a: &[kurbo::Point], b: &[kurbo::Point]| {
+        a.len() == b.len() && a.iter().all(|p| b.iter().any(|q| p.distance(*q) < 1e-6))
+    };
+    let reversed = after
+        .iter()
+        .find(|(pts, _)| same_points(pts, &before))
+        .expect("el mismo rectángulo");
+    assert!(reversed.0 != before, "mismo contorno, otro recorrido");
+}
+
+#[test]
+fn direction_arrows_follow_the_path() {
+    use crate::canvas::send_overlay::arrow_positions;
+    use egui::{pos2, vec2};
+    // Trazo corto: una flecha en el centro, apuntando en el sentido del trazo.
+    let a = arrow_positions(&[pos2(0.0, 0.0), pos2(100.0, 0.0)]);
+    assert_eq!(a, vec![(pos2(50.0, 0.0), vec2(1.0, 0.0))]);
+    // Al revés, la flecha apunta al otro lado.
+    let b = arrow_positions(&[pos2(100.0, 0.0), pos2(0.0, 0.0)]);
+    assert_eq!(b[0].1, vec2(-1.0, 0.0));
+    // Trazo largo con una esquina: varias flechas, cada una en la dirección de su tramo.
+    let c = arrow_positions(&[pos2(0.0, 0.0), pos2(300.0, 0.0), pos2(300.0, 300.0)]);
+    assert!(c.len() >= 3);
+    assert_eq!(c.first().unwrap().1, vec2(1.0, 0.0));
+    assert_eq!(c.last().unwrap().1, vec2(0.0, 1.0));
+    // Demasiado pequeño para verse: sin flechas.
+    assert!(arrow_positions(&[pos2(0.0, 0.0), pos2(5.0, 0.0)]).is_empty());
+}

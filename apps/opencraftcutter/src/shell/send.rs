@@ -48,6 +48,11 @@ pub struct SendSettings {
     pub mirror: Option<bool>,
     /// Simulación del corte en curso sobre la vista previa.
     pub simulation: Option<Simulation>,
+    /// Mostrar en la vista previa por dónde empieza cada trazo, hacia dónde corta y en qué
+    /// orden.
+    pub show_direction: bool,
+    /// Trazos de los trabajos actuales, en orden de corte (para dibujar su sentido).
+    pub direction_paths: Vec<send::Polyline>,
     /// Ventana «Historial de cortes y cuchillas» abierta.
     pub show_history: bool,
     /// Detalles demasiado finos de la última vista previa (huella de las líneas, mínimo).
@@ -122,6 +127,8 @@ impl Default for SendSettings {
             test_save: None,
             mirror: None,
             simulation: None,
+            show_direction: false,
+            direction_paths: Vec::new(),
             show_history: false,
             thin_cache: Default::default(),
         }
@@ -2408,6 +2415,12 @@ fn simulation_controls(app: &mut OpenCraftCutterApp, ui: &mut Ui, jobs: &[Job]) 
     if jobs.is_empty() {
         app.canvas.send.simulation = None;
     }
+    // Los trazos tal como se cortarán (orden y sentido), para dibujarlos en la vista previa.
+    app.canvas.send.direction_paths = if app.canvas.send.show_direction {
+        jobs.iter().flat_map(|j| j.paths.iter().cloned()).collect()
+    } else {
+        Vec::new()
+    };
     ui.horizontal(|ui| {
         ui.label(RichText::new("Trabajos").color(theme::CHROME_100));
         if jobs.is_empty() {
@@ -2422,6 +2435,15 @@ fn simulation_controls(app: &mut OpenCraftCutterApp, ui: &mut Ui, jobs: &[Job]) 
         )
         .on_hover_text("Aproximado: depende de la máquina, del material y de las curvas.");
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let r = ui
+                .toggle_value(
+                    &mut app.canvas.send.show_direction,
+                    format!("{}  Sentido", <&str>::from(mi::ICON_ARROW_RIGHT_ALT)),
+                )
+                .on_hover_text(
+                    "Muestra dónde empieza cada trazo (punto numerado, en orden de corte) y hacia dónde corta. Para cambiarlo: Editar puntos › Invertir sentido.",
+                );
+            crate::theme::name_widget(&r, "Mostrar el sentido de corte");
             if app.canvas.send.simulation.is_some() {
                 if ui
                     .small_button(format!("{}  Parar", <&str>::from(mi::ICON_STOP)))

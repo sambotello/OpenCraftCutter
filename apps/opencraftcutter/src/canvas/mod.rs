@@ -5,7 +5,7 @@ pub mod guides;
 mod overlay;
 pub mod point_edit;
 pub mod render;
-mod send_overlay;
+pub mod send_overlay;
 mod text_edit;
 mod tools;
 mod viewport;
