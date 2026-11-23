@@ -19,13 +19,15 @@ Software libre de diseño y corte para cortadoras de manualidades, compatible co
 - Pestañas de documentos; formato propio `.opencraftcutter` (JSON).
 - **Abrir** documentos, SVG e imágenes (PNG, JPG, GIF, BMP, WebP, TIFF): SVG e imágenes se abren en un documento nuevo, como en Silhouette Studio.
 - **Abrir documentos de Silhouette Studio (`.studio3`)**: formas, trazados compuestos, curvas, rotación, colores de línea y relleno, e imágenes incrustadas (también los rellenos de imagen, recortados por su contorno). Los textos se importan como texto editable (contenido, fuente y tamaño, en el sitio de sus letras).
-- Arrastrar desde Finder: SVG e imágenes se añaden al tapete donde se sueltan; los documentos se abren en pestaña nueva y, en Biblioteca, se copian a la carpeta.
+- Arrastrar desde Finder: SVG, PDF e imágenes se añaden al tapete donde se sueltan; los documentos se abren en pestaña nueva y, en Biblioteca, se copian a la carpeta.
 - Importar SVG e imágenes al documento abierto; exportar SVG (con marcas de registro).
 
 **Dibujo y edición**
-- Rectángulo, elipse, línea, polígono, mano alzada y texto (fuentes del sistema).
+- Rectángulo, elipse, línea, polígono, pluma (trazados Bézier), mano alzada y texto (fuentes del sistema).
 - **Editar puntos** con nodos Bézier: mover nodos y manejadores, añadir un nodo con un clic en la línea, selección múltiple (Mayús+clic o recuadro), ajuste a otros puntos, a la retícula y a la página con guías, alinear y distribuir puntos, posición numérica, flechas del teclado, borrar punto, romper, unir y cerrar trazados, vértice / suavizar / simétrico, convertir tramos en recta o curva, punto medio, invertir sentido, simplificar y recuento de nodos. Doble clic en una forma entra en este modo.
 - Cuchilla y borrador; grupos; trazados compuestos.
+- Pegar desde otros programas: imágenes, vectores (SVG o PDF) y archivos copiados en el Finder.
+- Menús contextuales; ⌥+clic para llegar a las formas tapadas; guías al mover con el ajuste inteligente.
 - Marco de selección con cotas, barra de selección con tamaño, posición, punto de referencia y acciones rápidas.
 
 **Paneles**
@@ -98,7 +100,7 @@ Otras: `OPENCRAFTCUTTER_DEBUG_IMAGE`, `OPENCRAFTCUTTER_DEBUG_OPEN_PATH`, `OPENCR
 
 ## Atajos
 
-**Herramientas:** V seleccionar · A editar puntos · L línea · R rectángulo · E elipse · G polígono · P mano alzada · T texto · H desplazar · Z zoom
+**Herramientas:** V seleccionar · A editar puntos · L línea · R rectángulo · E elipse · G polígono · B pluma · P mano alzada · T texto · H desplazar · Z zoom
 
 **Edición:** ⌘Z / ⇧⌘Z deshacer y rehacer · ⌘A seleccionar todo · ⇧⌘A deseleccionar · ⌘D duplicar · Supr borrar · Flechas mover (⇧ ×10) · Espacio desplazar
 

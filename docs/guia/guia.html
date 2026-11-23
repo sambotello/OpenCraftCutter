@@ -272,7 +272,7 @@
     <tr><td><b>1 · Espacios</b></td><td>Diseño, Biblioteca y Enviar. Debajo, a la izquierda, la barra de menús: Archivo, Editar, Objeto, Ver, Zoom y Rotar página, y botones rápidos (nuevo, abrir, guardar, deshacer, zoom…).</td></tr>
     <tr><td><b>2 · Barra de estilo</b></td><td>Cambia según la selección y la herramienta: colores de relleno y trazo, grosor, tamaño y posición, fuente del texto o las acciones de Editar puntos.</td></tr>
     <tr><td><b>3 · Pestañas</b></td><td>Cada documento abierto tiene su pestaña. <kbd>⌘W</kbd> cierra la activa.</td></tr>
-    <tr><td><b>4 · Herramientas</b></td><td>Seleccionar, Editar puntos, Línea, Rectángulo, Elipse, Polígono, Mano alzada, Texto, Borrador, Cuchilla, Desplazar y Zoom.</td></tr>
+    <tr><td><b>4 · Herramientas</b></td><td>Seleccionar, Editar puntos, Línea, Rectángulo, Elipse, Polígono, Pluma, Mano alzada, Texto, Borrador, Cuchilla, Desplazar y Zoom.</td></tr>
     <tr><td><b>5 · Lienzo</b></td><td>El tapete gris con la página blanca. La línea roja marca el área que la máquina puede cortar.</td></tr>
     <tr><td><b>6 · Panel</b></td><td>El panel abierto (aquí, Configuración de página). Se cierra con su ×.</td></tr>
     <tr><td><b>7 · Raíl de paneles</b></td><td>Iconos para abrir cada panel: Página, Transformar, Relleno, Trazo, Texto, Capas, Modificar, Desplazamiento, Trazar, Replicar…</td></tr>
@@ -324,7 +324,7 @@
   <p>En la segunda pestaña del panel, o en el menú <span class="ui">Ver</span>:</p>
   <ul>
     <li><span class="ui">Mostrar retícula</span> y <span class="ui">Ajustar a retícula</span>: cuadrícula cuadrada o isométrica, con <span class="ui">Espaciado</span> y <span class="ui">Divisiones</span>.</li>
-    <li><span class="ui">Habilitar ajuste inteligente</span>: al mover, los objetos se alinean solos con los bordes y centros de la página y de otros objetos, con una <span class="ui">Tolerancia</span> configurable.</li>
+    <li><span class="ui">Habilitar ajuste inteligente</span>: al mover, los objetos se alinean solos con los bordes y centros de la página y de otros objetos, con una <span class="ui">Tolerancia</span> configurable. Una guía rosa muestra con qué borde o centro se ha alineado.</li>
     <li><span class="ui">Mostrar bordes de corte</span> <kbd>⇧⌘L</kbd> (la línea roja) y <span class="ui">Mostrar bordes de impresión</span> <kbd>⇧⌘P</kbd> (el margen de tu impresora, para Imprimir y cortar).</li>
   </ul>
   <div class="truco"><p>Las unidades (cm, mm o pulgadas), el espaciado de retícula y el margen de corte por defecto de los documentos nuevos se cambian en <a href="#preferencias">Preferencias</a>.</p></div>
@@ -345,6 +345,7 @@
     <tr><td><span class="ui">Rectángulo</span> <kbd>R</kbd></td><td>Arrastra en diagonal. Con <kbd>⇧</kbd>, cuadrado.</td></tr>
     <tr><td><span class="ui">Elipse</span> <kbd>E</kbd></td><td>Arrastra en diagonal. Con <kbd>⇧</kbd>, círculo.</td></tr>
     <tr><td><span class="ui">Polígono</span> <kbd>G</kbd></td><td>Un clic por vértice; doble clic cierra la forma.</td></tr>
+    <tr><td><span class="ui">Pluma</span> <kbd>B</kbd></td><td>Trazados con curvas, punto a punto: un clic pone una esquina; arrastrar al poner el punto le saca manejadores y curva el tramo. Un clic sobre el primer punto cierra la forma; <kbd>⏎</kbd>, <kbd>Esc</kbd> o un doble clic la terminan abierta; <kbd>⌫</kbd> quita el último punto; <kbd>⇧</kbd> mantiene el tramo en horizontal, vertical o diagonal.</td></tr>
     <tr><td><span class="ui">Mano alzada</span> <kbd>P</kbd></td><td>Dibuja arrastrando, como con un lápiz.</td></tr>
     <tr><td><span class="ui">Texto</span> <kbd>T</kbd></td><td>Clic en el lienzo y escribe. Ver <a href="#texto">Texto</a>.</td></tr>
     <tr><td><span class="ui">Borrador</span></td><td>Arrastra sobre las formas para borrar esa franja. El grosor se ajusta en Preferencias.</td></tr>
@@ -375,10 +376,13 @@
   <p><span class="ui">Pegar</span> <kbd>⌘V</kbd> acepta también lo que copies fuera de OpenCraftCutter:</p>
   <ul>
     <li><strong>Imágenes:</strong> «Copiar imagen» en un navegador, una captura de pantalla o un recorte de otro programa. Entra como imagen, centrada en la página y con el panel <span class="ui">Trazar</span> abierto.</li>
-    <li><strong>Vectores:</strong> lo que el programa de origen copie como SVG entra como trazados editables. Algunos programas vectoriales solo copian PDF salvo que actives en sus ajustes la opción de copiar como SVG; en ese caso verás un aviso.</li>
-    <li><strong>Archivos copiados en el Finder:</strong> SVG, imágenes y documentos, igual que al arrastrarlos al lienzo.</li>
+    <li><strong>Vectores:</strong> lo copiado en un programa vectorial entra como trazados editables, a tamaño real, tanto si el programa lo copia como SVG como si lo copia como PDF (lo habitual). Si el PDF no trae trazados, se pega la imagen que venía con él.</li>
+    <li><strong>Archivos copiados en el Finder:</strong> SVG, PDF, imágenes y documentos, igual que al arrastrarlos al lienzo.</li>
   </ul>
   <p>Con clic derecho, <span class="ui">Pegar aquí</span> lo coloca bajo el puntero.</p>
+
+  <h3>Formas tapadas por otras</h3>
+  <p>Un clic selecciona la forma de más arriba. Para llegar a las de debajo, <kbd>⌥</kbd>+clic baja de una en una (y desde la última vuelve arriba), o usa <span class="ui">Seleccionar debajo</span> en el menú del clic derecho, que lista todas las formas que hay en ese punto. En el panel <span class="ui">Capas</span>, un doble clic sobre el nombre de una forma (o <span class="ui">Renombrar</span> en su menú) le cambia el nombre, para distinguirlas.</p>
 
   <h3>Menús contextuales</h3>
   <p>El clic derecho abre un menú solo con lo que se puede hacer en ese momento:</p>
@@ -416,7 +420,7 @@
   </ul>
 
   <h3>Redondear esquinas</h3>
-  <p>Selecciona uno o varios puntos en esquina y sube el <span class="ui">Radio</span> de la sección <span class="ui">Redondear esquina</span>: la punta se sustituye por un arco tangente a los dos tramos. Puedes arrastrar el valor o escribirlo, y seguir ajustándolo: siempre parte de la esquina original, y con 0 vuelve la punta. Sirve entre rectas, entre curvas y entre una recta y una curva. Si el radio no cabe en los tramos, se usa el mayor posible. En cuanto haces otra edición, el redondeo queda fijado como nodos normales.</p>
+  <p>Selecciona uno o varios puntos en esquina y sube el <span class="ui">Radio</span> de la sección <span class="ui">Redondear esquina</span>: la punta se corta y se dibuja como un arco tangente a los dos tramos. El radio queda guardado en la esquina, que sigue siendo un solo punto en el vértice: puedes volver cuando quieras y cambiarlo, cada esquina tiene el suyo, y con 0 vuelve la punta. Sirve entre rectas, entre curvas y entre una recta y una curva; si no cabe en los tramos se usa el mayor radio posible, y al cambiar el tamaño de la forma el radio no cambia. <span class="ui">Convertir el redondeo en puntos</span> sustituye la esquina por los dos extremos del arco, para retocar la curva a mano.</p>
 
   <h3>Alinear y distribuir puntos</h3>
   <p>Con dos o más nodos seleccionados, la sección <span class="ui">Alinear puntos</span> los pone a la misma altura o en la misma vertical (izquierda, centro, derecha, arriba, medio, abajo). Con tres o más, <span class="ui">Distribuir</span> los reparte a intervalos iguales entre los dos de los extremos. Los manejadores se mueven con su nodo, así que las curvas conservan su forma.</p>
@@ -660,6 +664,7 @@
   <h3 id="recuperacion">Copia automática y recuperación</h3>
   <p>Cada 2 minutos, si hay cambios sin guardar, OpenCraftCutter guarda una copia de seguridad del documento en <code>~/Library/Application Support/OpenCraftCutter</code>. Si el programa se cierra inesperadamente, usa <span class="ui">Archivo → Abre un archivo recuperado…</span>.</p>
   <p>El historial de <span class="ui">Deshacer</span> <kbd>⌘Z</kbd> / <span class="ui">Rehacer</span> <kbd>⇧⌘Z</kbd> cubre todos los cambios del documento.</p>
+  <p>Si un cálculo falla con alguna forma (por ejemplo, con medidas no válidas), OpenCraftCutter avisa y sigue abierto en lugar de cerrarse. Cada fallo queda anotado, con fecha y detalles, en <code>~/Library/Application Support/OpenCraftCutter/errores.log</code>: adjunta ese archivo si informas de un problema.</p>
 </section>
 
 <!-- ============================ 13 BIBLIOTECA ============================ -->
@@ -907,7 +912,7 @@
       <table>
         <tr><td><kbd>V</kbd> · <kbd>A</kbd></td><td>Seleccionar · Editar puntos</td></tr>
         <tr><td><kbd>L</kbd> · <kbd>R</kbd> · <kbd>E</kbd></td><td>Línea · Rectángulo · Elipse</td></tr>
-        <tr><td><kbd>G</kbd> · <kbd>P</kbd> · <kbd>T</kbd></td><td>Polígono · Mano alzada · Texto</td></tr>
+        <tr><td><kbd>G</kbd> · <kbd>B</kbd> · <kbd>P</kbd> · <kbd>T</kbd></td><td>Polígono · Pluma · Mano alzada · Texto</td></tr>
         <tr><td><kbd>H</kbd> · <kbd>Z</kbd></td><td>Desplazar · Zoom de arrastre</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Terminar o cancelar la acción en curso</td></tr>
       </table>
