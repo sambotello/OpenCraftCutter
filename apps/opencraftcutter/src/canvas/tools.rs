@@ -50,13 +50,30 @@ fn path_kind(points: &[Point], closed: bool) -> (Rect, ShapeKind) {
 
 /// Forma bajo el puntero (la de más arriba en la pila).
 pub(super) fn shape_at(app: &OpenCraftCutterApp, p: Point) -> Option<u64> {
+    shapes_at(app, p).first().copied()
+}
+
+/// Todas las formas bajo el puntero, de la de más arriba a la de más abajo.
+pub(super) fn shapes_at(app: &OpenCraftCutterApp, p: Point) -> Vec<u64> {
     let tol = 6.0 / app.canvas.viewport.scale;
     app.doc
         .shapes
         .iter()
         .rev()
-        .find(|s| hit_test(s, p, tol))
+        .filter(|s| hit_test(s, p, tol))
         .map(|s| s.id)
+        .collect()
+}
+
+/// La forma que está justo debajo de la seleccionada en el punto `p` (Alt + clic). Desde la
+/// de más abajo se vuelve a la de arriba; si la selección no está bajo el puntero, la de arriba.
+pub(super) fn shape_below_selection(app: &OpenCraftCutterApp, p: Point) -> Option<u64> {
+    let under = shapes_at(app, p);
+    let current = under.iter().rposition(|id| app.doc.is_selected(*id));
+    match current {
+        Some(i) => under.get((i + 1) % under.len()).copied(),
+        None => under.first().copied(),
+    }
 }
 
 /// Asa bajo el puntero (en px de pantalla).
@@ -392,7 +409,10 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 }
             }
             Tool::Select | Tool::Note => {
-                match handle_at(app, pos) {
+                // Con Alt el clic es «seleccionar debajo»: no se agarran las asas, que pueden
+                // quedar justo sobre la forma que se busca.
+                let handle = if alt { None } else { handle_at(app, pos) };
+                match handle {
                     Some(None) => {
                         let originals: Vec<Shape> =
                             app.doc.selected_shapes().into_iter().cloned().collect();
@@ -437,10 +457,18 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     }
                     None => {}
                 }
-                if let Some(id) = shape_at(app, p) {
+                // Alt + clic: la forma de debajo de la seleccionada (para llegar a las tapadas).
+                let picked = if alt {
+                    shape_below_selection(app, p)
+                } else {
+                    shape_at(app, p)
+                };
+                if let Some(id) = picked {
                     // Un objeto agrupado se selecciona con todo su grupo.
                     let members = app.doc.with_group(id);
-                    if shift {
+                    if alt {
+                        app.doc.selected = members;
+                    } else if shift {
                         for m in members {
                             app.doc.toggle_selected(m);
                         }

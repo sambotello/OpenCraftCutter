@@ -160,6 +160,44 @@ pub fn paste_at(app: &mut OpenCraftCutterApp, ctx: &egui::Context, at: Point) {
     }
 }
 
+/// Submenú con todas las formas que hay bajo el punto donde se abrió el menú, de arriba abajo,
+/// para llegar a las que quedan tapadas. Solo aparece si hay más de una.
+fn shapes_under_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, at: Point) {
+    let under = super::tools::shapes_at(app, at);
+    if under.len() < 2 {
+        return;
+    }
+    let editing = (app.tool == Tool::EditPoints)
+        .then(|| app.canvas.point_edit.map(|pe| pe.shape))
+        .flatten();
+    let title = if app.tool == Tool::EditPoints {
+        "Editar otra forma de aquí"
+    } else {
+        "Seleccionar debajo"
+    };
+    ui.menu_button(title, |ui| {
+        for id in under {
+            let Some((name, kind)) = app.doc.shape(id).map(|s| (s.name.clone(), s.kind_name()))
+            else {
+                continue;
+            };
+            let current = if app.tool == Tool::EditPoints {
+                editing == Some(id)
+            } else {
+                app.doc.is_selected(id)
+            };
+            let mark = if current { "✔ " } else { "" };
+            if item(ui, &format!("{mark}{name}"), kind) {
+                if app.tool == Tool::EditPoints {
+                    point_edit::begin(app, id);
+                } else {
+                    app.doc.selected = app.doc.with_group(id);
+                }
+            }
+        }
+    });
+}
+
 /// Órdenes de organizar, alinear, voltear y rotar (comunes al lienzo y al panel Capas).
 pub fn arrange_menus(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     submenu(
@@ -338,6 +376,7 @@ fn selection_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarg
     }
     lock_and_hide(app, ui);
     ui.separator();
+    shapes_under_menu(app, ui, target.at);
     if item(ui, "Zoom a la selección", "⌘2") {
         viewport_actions::zoom_to_selection(app);
     }
@@ -495,6 +534,7 @@ fn points_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarget)
         }
         ui.separator();
     }
+    shapes_under_menu(app, ui, target.at);
     if item(ui, "Seleccionar todos los puntos", "⌘A") {
         app.point_select_all();
     }

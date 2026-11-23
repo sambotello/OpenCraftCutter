@@ -2965,3 +2965,84 @@ fn layers_panel_renames_a_shape() {
     h.state_mut().redo();
     assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Tapa de la caja");
 }
+
+// ---------------------------------------------------------------- Seleccionar lo de debajo
+
+/// Tres formas que pasan por (60, 70): un rectángulo grande debajo y dos líneas encima.
+fn stacked() -> (AppHarness, [u64; 3]) {
+    let mut h = app_harness();
+    let mut back = rect(0.0, BLUE);
+    back.rect = Rect::new(60.0, 30.0, 160.0, 110.0);
+    back.name = "Contorno".into();
+    let mut fold = line((60.0, 70.0), (160.0, 70.0));
+    fold.name = "Doblez".into();
+    let mut side = line((60.0, 30.0), (60.0, 110.0));
+    side.name = "Lado".into();
+    let a = h.state_mut();
+    let ids = [
+        a.doc.add_shape(back),
+        a.doc.add_shape(fold),
+        a.doc.add_shape(side),
+    ];
+    a.panel = None;
+    h.run_steps(3);
+    (h, ids)
+}
+
+#[test]
+fn alt_click_selects_the_shape_below() {
+    let (mut h, [back, fold, side]) = stacked();
+    // Un clic normal toma la de arriba.
+    click_mm(&mut h, (60.0, 70.0));
+    assert_eq!(h.state().doc.selected, vec![side]);
+    // Alt + clic baja de una en una y, desde la última, vuelve arriba.
+    let alt_click = |h: &mut AppHarness| {
+        let pos = h
+            .state()
+            .canvas
+            .viewport
+            .to_screen(kurbo::Point::new(60.0, 70.0));
+        h.event(egui::Event::ModifiersChanged(egui::Modifiers::ALT));
+        h.hover_at(pos);
+        h.step();
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::ALT,
+            });
+            h.step();
+        }
+        h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+        h.run_steps(3);
+    };
+    alt_click(&mut h);
+    assert_eq!(h.state().doc.selected, vec![fold]);
+    alt_click(&mut h);
+    assert_eq!(h.state().doc.selected, vec![back]);
+    alt_click(&mut h);
+    assert_eq!(h.state().doc.selected, vec![side]);
+    assert!(
+        !h.state().history.can_undo(),
+        "seleccionar no cambia el documento"
+    );
+}
+
+#[test]
+fn context_menu_lists_the_shapes_under_the_pointer() {
+    let (mut h, [back, fold, side]) = stacked();
+    right_click_mm(&mut h, (60.0, 70.0));
+    assert_eq!(h.state().doc.selected, vec![side]);
+    click(&mut h, "Seleccionar debajo");
+    assert!(shows(&h, "✔ Lado") && shows(&h, "Doblez") && shows(&h, "Contorno"));
+    click(&mut h, "Doblez");
+    assert_eq!(h.state().doc.selected, vec![fold]);
+    // Donde solo hay una forma no se ofrece.
+    right_click_mm(&mut h, (120.0, 110.0));
+    if !shows(&h, "Duplicar") {
+        right_click_mm(&mut h, (120.0, 110.0));
+    }
+    assert_eq!(h.state().doc.selected, vec![back]);
+    assert!(shows(&h, "Duplicar") && !shows(&h, "Seleccionar debajo"));
+}
