@@ -514,18 +514,45 @@ fn studio3_export_then_import_round_trip() {
 /// (formas, texto, imagen, grupo) y con y sin selección: nada debe fallar.
 #[test]
 fn every_panel_tool_and_workspace_renders() {
+    // Con el zoom de arranque las líneas de 1 pt se dibujan «finas»; ampliado, como contorno
+    // (otro camino de código): se recorre todo en los dos.
+    render_everything(1.0);
+    render_everything(6.0);
+}
+
+/// Amplía la vista `factor` veces alrededor de un punto del documento (mm).
+pub(crate) fn zoom_at_mm(
+    h: &mut Harness<'static, OpenCraftCutterApp>,
+    at: (f64, f64),
+    factor: f64,
+) {
+    let c = h
+        .state()
+        .canvas
+        .viewport
+        .to_screen(kurbo::Point::new(at.0, at.1));
+    h.state_mut().canvas.viewport.zoom_at(factor, c);
+    h.run_steps(2);
+}
+
+fn render_everything(zoom: f64) {
     use crate::app::{Panel, Tool, Workspace};
     let mut h = app_harness();
     {
         let a = h.state_mut();
-        let r = a.doc.add_shape(rect(20.0, RED));
+        let mut first = rect(20.0, RED);
+        first.stroke.width_pt = 1.0;
+        let r = a.doc.add_shape(first);
         let mut g = rect(70.0, BLUE);
         g.group = Some(9);
+        g.stroke.width_pt = 2.0;
+        g.stroke.style = oc_core::shape::LineStyle::Dashed;
         a.doc.add_shape(g);
         a.doc.add_shape(text("Prueba"));
         a.doc.add_shape(image());
         a.doc.selected = vec![r];
     }
+    zoom_at_mm(&mut h, (40.0, 35.0), zoom);
     let panels = [
         Panel::PageSetup,
         Panel::Transform,

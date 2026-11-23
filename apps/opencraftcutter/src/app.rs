@@ -724,6 +724,17 @@ impl eframe::App for OpenCraftCutterApp {
         }
         let now = ctx.input(|i| i.time);
         self.autosave_tick(now);
+        // Un cálculo de geometría falló (forma con coordenadas no válidas): se avisa en vez de
+        // cerrar la app; la traza queda en el registro de errores.
+        if let Some(what) = oc_core::guard::take_failure() {
+            self.notify(
+                ctx,
+                format!(
+                    "No se pudo calcular {what}: alguna forma tiene medidas no válidas. \
+                     Deshaz el último cambio o bórrala. Detalles en errores.log."
+                ),
+            );
+        }
         crate::panels::page_guide_window(self, ctx);
         // Depuración: OPENCRAFTCUTTER_DEBUG_OPEN_PATH=archivo abre ese archivo al arrancar.
         if cfg!(debug_assertions) && !self.pixscan_debug_done {

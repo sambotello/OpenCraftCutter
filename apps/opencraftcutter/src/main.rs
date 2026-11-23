@@ -108,8 +108,36 @@ fn window_icon() -> Option<egui::IconData> {
     })
 }
 
+/// Además de salir por la terminal, cada pánico queda en el registro de errores: quien abre la
+/// app desde el Finder no ve la terminal.
+fn install_error_log() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "pánico sin mensaje".into());
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "lugar desconocido".into());
+        let entry = file_menu::error_log_entry(
+            &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            oc_core::guard::is_guarding(),
+            &message,
+            &location,
+            &std::backtrace::Backtrace::force_capture().to_string(),
+        );
+        let _ = file_menu::append_error_log(&file_menu::error_log_path(), &entry);
+        previous(info);
+    }));
+}
+
 fn main() -> eframe::Result {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
+    install_error_log();
     // Empaquetado: `opencraftcutter --export-icon icono.png` guarda el icono de la app (1024 px).
     let args: Vec<String> = std::env::args().collect();
     if let [_, flag, path] = args.as_slice() {
