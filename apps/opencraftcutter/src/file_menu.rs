@@ -31,6 +31,55 @@ pub fn recovery_dir() -> PathBuf {
     base.join("Recuperados")
 }
 
+/// Registro de errores: cada fallo interno (con su traza) se añade a este archivo.
+pub fn error_log_path() -> PathBuf {
+    recovery_dir()
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default()
+        .join("errores.log")
+}
+
+/// Tamaño a partir del cual el registro se archiva y se empieza otro.
+const ERROR_LOG_MAX_BYTES: u64 = 512 * 1024;
+
+/// Añade una entrada al registro de errores en `path` (crea la carpeta si falta). Si el
+/// archivo ha crecido demasiado, el anterior pasa a `errores.anterior.log`.
+pub fn append_error_log(path: &Path, entry: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    if std::fs::metadata(path).is_ok_and(|m| m.len() > ERROR_LOG_MAX_BYTES) {
+        let _ = std::fs::rename(path, path.with_file_name("errores.anterior.log"));
+    }
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+    writeln!(f, "{entry}\n")
+}
+
+/// Texto de una entrada del registro: fecha, versión, si la app siguió abierta, el mensaje,
+/// dónde ocurrió y la traza.
+pub fn error_log_entry(
+    when: &str,
+    recovered: bool,
+    message: &str,
+    location: &str,
+    backtrace: &str,
+) -> String {
+    format!(
+        "==== {when} · OpenCraftCutter {} · {}\n{message}\n  en {location}\n{backtrace}",
+        env!("CARGO_PKG_VERSION"),
+        if recovered {
+            "fallo de cálculo recuperado (la app siguió abierta)"
+        } else {
+            "cierre inesperado"
+        },
+    )
+}
+
 fn file_name_safe(name: &str) -> String {
     name.chars()
         .map(|c| if "/\\:*?\"<>|".contains(c) { '_' } else { c })

@@ -160,6 +160,12 @@ fn fill_rule_of(s: &Shape) -> IoFillRule {
 
 /// Normaliza los contornos de una forma a polígonos limpios (sin autointersecciones, agujeros resueltos).
 pub fn polygons_of(s: &Shape) -> Polygons {
+    crate::guard::guarded("el contorno de una forma", Vec::new, || {
+        polygons_of_unguarded(s)
+    })
+}
+
+fn polygons_of_unguarded(s: &Shape) -> Polygons {
     let contours = closed_contours(s);
     if contours.is_empty() {
         return Vec::new();
@@ -197,6 +203,14 @@ pub fn shape_from_polygons(template: &Shape, polys: &Polygons, name: &str) -> Op
 /// Aplica una operación booleana. `shapes` en orden de pila (la primera es la inferior).
 /// Devuelve las formas resultantes (vacío si no hay nada) o `None` si la operación no aplica.
 pub fn boolean(shapes: &[Shape], op: BoolOp) -> Option<Vec<Shape>> {
+    crate::guard::guarded(
+        "la operación de Modificar",
+        || None,
+        || boolean_unguarded(shapes, op),
+    )
+}
+
+fn boolean_unguarded(shapes: &[Shape], op: BoolOp) -> Option<Vec<Shape>> {
     let polys: Vec<Polygons> = shapes
         .iter()
         .map(polygons_of)
@@ -325,6 +339,19 @@ fn miter_min_angle(limit: f64) -> f64 {
 
 /// Como [`offset`], con el límite de las esquinas en punta.
 pub fn offset_with_limit(
+    s: &Shape,
+    distance_mm: f64,
+    join: Join,
+    miter_limit: f64,
+) -> Option<Shape> {
+    crate::guard::guarded(
+        "el desplazamiento",
+        || None,
+        || offset_with_limit_unguarded(s, distance_mm, join, miter_limit),
+    )
+}
+
+fn offset_with_limit_unguarded(
     s: &Shape,
     distance_mm: f64,
     join: Join,
@@ -682,6 +709,14 @@ pub fn shape_from_lines(template: &Shape, lines: &Lines, name: &str) -> Option<S
 
 /// Corta una forma con una polilínea (cuchilla). Devuelve las piezas (o la forma intacta si no la cruza).
 pub fn slice(s: &Shape, line: &[[f64; 2]]) -> Vec<Shape> {
+    crate::guard::guarded(
+        "el corte con la cuchilla",
+        || vec![s.clone()],
+        || slice_unguarded(s, line),
+    )
+}
+
+fn slice_unguarded(s: &Shape, line: &[[f64; 2]]) -> Vec<Shape> {
     if line.len() < 2 {
         return vec![s.clone()];
     }
@@ -765,6 +800,12 @@ fn segment_intersection_t(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2]) ->
 
 /// Polígono de una "pincelada" (recorrido con grosor `width`), para el borrador.
 pub fn brush_polygons(path: &[[f64; 2]], width: f64) -> Polygons {
+    crate::guard::guarded("la pincelada del borrador", Vec::new, || {
+        brush_polygons_unguarded(path, width)
+    })
+}
+
+fn brush_polygons_unguarded(path: &[[f64; 2]], width: f64) -> Polygons {
     if path.is_empty() || width <= 0.0 {
         return Vec::new();
     }
@@ -785,6 +826,14 @@ pub fn brush_polygons(path: &[[f64; 2]], width: f64) -> Polygons {
 
 /// Borra de una forma todo lo cubierto por `brush`. Devuelve lo que queda (puede ser vacío).
 pub fn erase(s: &Shape, brush: &Polygons) -> Vec<Shape> {
+    crate::guard::guarded(
+        "el borrado",
+        || vec![s.clone()],
+        || erase_unguarded(s, brush),
+    )
+}
+
+fn erase_unguarded(s: &Shape, brush: &Polygons) -> Vec<Shape> {
     if brush.is_empty() {
         return vec![s.clone()];
     }
@@ -812,6 +861,14 @@ pub fn erase(s: &Shape, brush: &Polygons) -> Vec<Shape> {
 
 /// Sombreado: líneas paralelas con `angle_deg` y `spacing_mm` recortadas al interior de la forma.
 pub fn hatch(s: &Shape, angle_deg: f64, spacing_mm: f64, cross: bool) -> Option<Shape> {
+    crate::guard::guarded(
+        "el relleno de líneas",
+        || None,
+        || hatch_unguarded(s, angle_deg, spacing_mm, cross),
+    )
+}
+
+fn hatch_unguarded(s: &Shape, angle_deg: f64, spacing_mm: f64, cross: bool) -> Option<Shape> {
     let polys = polygons_of(s);
     if polys.is_empty() || spacing_mm <= 0.0 {
         return None;
@@ -886,6 +943,19 @@ fn circle(center: [f64; 2], diameter: f64) -> Vec<Point> {
 
 /// Pedrería: círculos de `diameter_mm` separados `gap_mm` sobre el contorno y/o el interior.
 pub fn rhinestones(s: &Shape, diameter_mm: f64, gap_mm: f64, layout: StoneLayout) -> Option<Shape> {
+    crate::guard::guarded(
+        "la pedrería",
+        || None,
+        || rhinestones_unguarded(s, diameter_mm, gap_mm, layout),
+    )
+}
+
+fn rhinestones_unguarded(
+    s: &Shape,
+    diameter_mm: f64,
+    gap_mm: f64,
+    layout: StoneLayout,
+) -> Option<Shape> {
     let polys = polygons_of(s);
     if polys.is_empty() || diameter_mm <= 0.0 {
         return None;
@@ -1117,6 +1187,12 @@ fn io_cap(cap: crate::shape::LineCap) -> LineCap<[f64; 2]> {
 /// Polígonos (mm, mundo) que ocupa el trazo de una forma, o vacío si es una línea fina.
 /// `extra` permite pasar contornos ya calculados (los textos), en coordenadas del mundo sin rotar.
 pub fn stroke_polygons(s: &Shape, extra: Option<&[(Vec<Point>, bool)]>) -> Polygons {
+    crate::guard::guarded("el grosor de una línea", Vec::new, || {
+        stroke_polygons_unguarded(s, extra)
+    })
+}
+
+fn stroke_polygons_unguarded(s: &Shape, extra: Option<&[(Vec<Point>, bool)]>) -> Polygons {
     let width = crate::units::pt_to_mm(s.stroke.width_pt);
     if width <= 0.0 {
         return Vec::new();
@@ -1299,5 +1375,46 @@ mod stroke_tests {
         pts.iter()
             .skip(1)
             .fold(Rect::from_points(pts[0], pts[0]), |r, p| r.union_pt(*p))
+    }
+}
+
+#[cfg(test)]
+mod guard_tests {
+    use super::*;
+
+    /// Línea de 1 pt con coordenadas fuera de lo que admite la biblioteca de polígonos.
+    fn overflowed() -> Shape {
+        let mut s = Shape::new(
+            1,
+            "Línea",
+            kurbo::Rect::new(0.0, 70.0, 1e200, 70.0),
+            ShapeKind::Path {
+                subpaths: Vec::new(),
+                fill_rule: Default::default(),
+            },
+        );
+        s.set_world_subpaths(&[(vec![Point::new(0.0, 70.0), Point::new(1e200, 70.0)], false)]);
+        s.stroke.width_pt = 1.0;
+        s
+    }
+
+    #[test]
+    fn out_of_range_coordinates_do_not_panic() {
+        let _ = crate::guard::take_failure();
+        let s = overflowed();
+        // Sin la protección, este cálculo entra en pánico (así se cerraba la app).
+        let raw = std::panic::catch_unwind(|| stroke_polygons_unguarded(&s, None));
+        assert!(raw.is_err(), "la biblioteca rechaza estas coordenadas");
+        assert!(stroke_polygons(&s, None).is_empty());
+        assert!(offset(&s, 2.0, Join::Round).is_none());
+        let mut nan = overflowed();
+        nan.rect = kurbo::Rect::new(f64::NAN, 0.0, f64::NAN, 10.0);
+        let _ = stroke_polygons(&nan, None);
+        let _ = boolean(&[nan.clone(), s.clone()], BoolOp::Weld);
+        let _ = erase(&nan, &brush_polygons(&[[0.0, 0.0], [5.0, 5.0]], 2.0));
+        // Una forma normal sigue funcionando después.
+        let mut ok = overflowed();
+        ok.set_world_subpaths(&[(vec![Point::new(0.0, 0.0), Point::new(10.0, 0.0)], false)]);
+        assert!(!stroke_polygons(&ok, None).is_empty());
     }
 }

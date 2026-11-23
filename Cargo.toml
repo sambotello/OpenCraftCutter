@@ -49,5 +49,6 @@ debug = "line-tables-only"
 codegen-units = 1
 lto = "fat"
 opt-level = 3
-panic = "abort"
+# Sin `panic = "abort"`: oc_core::guard recoge los fallos de geometría para que una forma con
+# coordenadas no válidas no cierre la app.
 strip = true

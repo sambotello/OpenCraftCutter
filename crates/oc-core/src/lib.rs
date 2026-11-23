@@ -8,6 +8,7 @@ pub mod color;
 pub mod details;
 pub mod document;
 pub mod edit;
+pub mod guard;
 pub mod history;
 pub mod machines;
 pub mod nodes;

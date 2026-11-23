@@ -13,6 +13,12 @@ use i_overlay::mesh::float::style::{LineJoin, OutlineStyle};
 /// Zonas de las piezas (contornos cerrados en mm, par-impar) más finas que `min_mm`. Se
 /// descartan las virutas de las esquinas, que son de esperar en cualquier forma con picos.
 pub fn thin_parts(contours: &[Vec<[f64; 2]>], min_mm: f64) -> Polygons {
+    crate::guard::guarded("los detalles finos", Vec::new, || {
+        thin_parts_unguarded(contours, min_mm)
+    })
+}
+
+fn thin_parts_unguarded(contours: &[Vec<[f64; 2]>], min_mm: f64) -> Polygons {
     if contours.is_empty() || min_mm <= 0.0 {
         return Vec::new();
     }

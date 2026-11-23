@@ -2851,3 +2851,80 @@ fn edit_points_round_one_corner_and_then_another() {
     a.undo();
     assert_eq!(anchors(a).len(), 4);
 }
+
+// ---------------------------------------------------------------- Robustez
+
+use crate::flow_tests::zoom_at_mm;
+
+#[test]
+fn thick_strokes_are_outlined_when_zoomed_in() {
+    // Comprueba que las pruebas con zoom recorren de verdad el cálculo del contorno del trazo.
+    let mut h = app_harness();
+    let id = h
+        .state_mut()
+        .doc
+        .add_shape(line((60.0, 70.0), (160.0, 70.0)));
+    h.run_steps(3);
+    assert!(
+        h.state().canvas.stroke_cache.borrow().is_empty(),
+        "con el zoom de arranque, 1 pt se dibuja como línea fina"
+    );
+    zoom_at_mm(&mut h, (110.0, 70.0), 6.0);
+    let cache = h.state().canvas.stroke_cache.borrow();
+    assert!(cache.get(&id).is_some_and(|(_, polys)| !polys.is_empty()));
+}
+
+#[test]
+fn a_shape_with_invalid_size_does_not_close_the_app() {
+    // Una forma con medidas desbordadas (lo que dejaba el fallo de las líneas planas): la app
+    // sigue abierta, avisa y las demás formas se siguen dibujando.
+    let mut h = app_harness();
+    let good = h
+        .state_mut()
+        .doc
+        .add_shape(line((60.0, 90.0), (160.0, 90.0)));
+    let mut bad = line((60.0, 70.0), (160.0, 70.0));
+    bad.rect = Rect::new(0.0, 70.0, 1e200, 70.0);
+    let bad = h.state_mut().doc.add_shape(bad);
+    zoom_at_mm(&mut h, (110.0, 80.0), 6.0);
+    h.run_steps(3);
+    // (El aviso al usuario sale de un indicador global que otras pruebas en paralelo también
+    // consumen: aquí se comprueba el resultado, no el aviso.)
+    let a = h.state();
+    let cache = a.canvas.stroke_cache.borrow();
+    assert!(cache.get(&good).is_some_and(|(_, p)| !p.is_empty()));
+    assert!(cache.get(&bad).is_some_and(|(_, p)| p.is_empty()));
+    // Seleccionarla, moverla y borrarla tampoco cierra nada.
+    drop(cache);
+    h.state_mut().doc.selected = vec![bad];
+    h.run_steps(3);
+    h.state_mut().delete_selected();
+    h.run_steps(3);
+    assert_eq!(h.state().doc.shapes.len(), 1);
+}
+
+#[test]
+fn error_log_keeps_every_failure_and_rotates() {
+    use crate::file_menu::{append_error_log, error_log_entry};
+    let path = temp("registro").join("errores.log");
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    let entry = error_log_entry(
+        "2026-11-22 16:00:00",
+        false,
+        "Invalid offset bounds: CoordinatesOutOfRange",
+        "offset.rs:346:58",
+        "0: traza",
+    );
+    assert!(entry.contains("cierre inesperado") && entry.contains(env!("CARGO_PKG_VERSION")));
+    let recovered = error_log_entry("2026-11-22 16:01:00", true, "otro", "x.rs:1:1", "");
+    assert!(recovered.contains("la app siguió abierta"));
+    append_error_log(&path, &entry).unwrap();
+    append_error_log(&path, &recovered).unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("CoordinatesOutOfRange") && text.contains("16:01:00"));
+    // Un registro enorme se archiva y se empieza otro.
+    std::fs::write(&path, vec![b'x'; 600 * 1024]).unwrap();
+    append_error_log(&path, &entry).unwrap();
+    assert!(std::fs::metadata(&path).unwrap().len() < 10_000);
+    assert!(path.with_file_name("errores.anterior.log").exists());
+}
