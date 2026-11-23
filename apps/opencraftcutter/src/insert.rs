@@ -21,8 +21,13 @@ pub enum InsertDialog {
 /// Medidas por defecto de cada plantilla.
 pub fn template_defaults(kind: usize) -> [f64; 3] {
     match kind {
-        0 => [60.0, 40.0, 25.0],
+        0 | 4 => [60.0, 40.0, 25.0],
         1 | 2 => [105.0, 148.0, 0.0],
+        5 => [70.0, 110.0, 12.0],
+        6 => [60.0, 80.0, 0.0],
+        7 => [80.0, 120.0, 40.0],
+        8 => [45.0, 150.0, 0.0],
+        9 => [105.0, 148.0, 25.0],
         _ => [50.0, 30.0, 0.0],
     }
 }
@@ -37,6 +42,28 @@ fn template_of(kind: usize, d: [f64; 3]) -> oc_core::templates::Template {
         },
         1 => Template::Envelope { w: d[0], h: d[1] },
         2 => Template::FoldedCard { w: d[0], h: d[1] },
+        4 => Template::LidBox {
+            w: d[0],
+            d: d[1],
+            h: d[2],
+        },
+        5 => Template::Pillow {
+            w: d[0],
+            h: d[1],
+            d: d[2],
+        },
+        6 => Template::Cone { d: d[0], h: d[1] },
+        7 => Template::Bag {
+            w: d[0],
+            h: d[1],
+            d: d[2],
+        },
+        8 => Template::Bookmark { w: d[0], h: d[1] },
+        9 => Template::PopUp {
+            w: d[0],
+            h: d[1],
+            s: d[2],
+        },
         _ => Template::Tag { w: d[0], h: d[1] },
     }
 }
@@ -44,9 +71,13 @@ fn template_of(kind: usize, d: [f64; 3]) -> oc_core::templates::Template {
 /// Nombres de las medidas de cada plantilla.
 fn dim_labels(kind: usize) -> &'static [&'static str] {
     match kind {
-        0 => &["Ancho", "Fondo", "Alto"],
+        0 | 4 => &["Ancho", "Fondo", "Alto"],
         1 => &["Ancho de la tarjeta", "Alto de la tarjeta"],
         2 => &["Ancho (cerrada)", "Alto"],
+        5 => &["Ancho", "Largo", "Curva de los extremos"],
+        6 => &["Diámetro de la base", "Alto"],
+        7 => &["Ancho", "Alto", "Fondo"],
+        9 => &["Ancho (cerrada)", "Alto", "Saliente del escalón"],
         _ => &["Ancho", "Alto"],
     }
 }
