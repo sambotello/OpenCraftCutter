@@ -3278,3 +3278,172 @@ fn pen_double_click_finishes_and_context_menu_closes() {
     let np = &a.doc.shapes[0].world_node_paths()[0];
     assert!(np.closed && np.nodes.len() == 3);
 }
+
+// ---------------------------------------------------------------- Nada cambia en reposo
+
+/// Documento con formas de todo tipo, incluidas las «difíciles»: líneas planas, formas
+/// giradas, grupos, esquinas redondeadas, una forma oculta y otra bloqueada.
+fn varied_doc() -> oc_core::Document {
+    use crate::flow_tests::{image, text};
+    let mut doc = oc_core::Document::default();
+    let mut add = |mut s: Shape, tweak: &dyn Fn(&mut Shape)| {
+        tweak(&mut s);
+        doc.add_shape(s)
+    };
+    add(rect(20.0, RED), &|s| s.stroke.width_pt = 1.0);
+    add(rect(70.0, BLUE), &|s| {
+        s.kind = ShapeKind::Ellipse;
+        s.rotation = 30.0;
+        s.stroke.width_pt = 2.0;
+    });
+    add(line((20.0, 80.0), (120.0, 80.0)), &|_| {});
+    add(line((130.0, 20.0), (130.0, 120.0)), &|_| {});
+    add(line((140.2, 20.0), (140.0, 120.0)), &|s| {
+        s.stroke.width_pt = 0.0
+    });
+    add(text("Hola"), &|s| {
+        s.rect = s.rect + kurbo::Vec2::new(0.0, 100.0)
+    });
+    add(image(), &|s| {
+        s.rect = s.rect + kurbo::Vec2::new(60.0, 120.0)
+    });
+    add(rect(20.0, RED), &|s| {
+        s.rect = Rect::new(20.0, 150.0, 60.0, 190.0);
+        s.group = Some(900);
+    });
+    add(rect(20.0, BLUE), &|s| {
+        s.rect = Rect::new(70.0, 150.0, 110.0, 190.0);
+        s.group = Some(900);
+    });
+    add(rect(0.0, RED), &|s| {
+        let mut np = oc_core::nodes::NodePath::from_points(
+            &[
+                kurbo::Point::new(150.0, 150.0),
+                kurbo::Point::new(190.0, 150.0),
+                kurbo::Point::new(170.0, 190.0),
+            ],
+            true,
+        );
+        np.nodes[2].radius = 6.0;
+        s.set_world_node_paths(&[np]);
+        s.stroke.width_pt = 1.0;
+    });
+    add(rect(150.0, BLUE), &|s| s.visible = false);
+    add(rect(150.0, RED), &|s| {
+        s.rect = Rect::new(150.0, 60.0, 190.0, 100.0);
+        s.locked = true;
+    });
+    doc
+}
+
+#[test]
+fn nothing_changes_while_idle() {
+    // Seleccionar una forma y abrir cualquier panel no debe tocar el documento ni el
+    // historial, por muchos fotogramas que pasen (el fallo de las líneas planas reescalaba la
+    // forma en cada fotograma). Con zoom, para recorrer también el dibujo de los contornos.
+    use crate::app::Panel;
+    let panels = [
+        None,
+        Some(Panel::PageSetup),
+        Some(Panel::Transform),
+        Some(Panel::Fill),
+        Some(Panel::Line),
+        Some(Panel::Text),
+        Some(Panel::PrintCut),
+        Some(Panel::Layers),
+        Some(Panel::Modify),
+        Some(Panel::Offset),
+        Some(Panel::Trace),
+        Some(Panel::Replicate),
+        Some(Panel::SpecialTools),
+        Some(Panel::EditPoints),
+        Some(Panel::Rhinestone),
+        Some(Panel::Sketch),
+        Some(Panel::Weeding),
+    ];
+    for zoom in [1.0, 5.0] {
+        let mut h = app_harness();
+        h.state_mut().doc = varied_doc();
+        h.state_mut().doc.page.smart_snap = true;
+        h.run_steps(3);
+        zoom_at_mm(&mut h, (100.0, 100.0), zoom);
+        let before = h.state().doc.to_json();
+        let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+        let mut selections: Vec<Vec<u64>> = ids.iter().map(|id| vec![*id]).collect();
+        selections.push(Vec::new());
+        selections.push(ids.clone());
+        for panel in panels {
+            for sel in &selections {
+                h.state_mut().doc.selected = sel.clone();
+                h.state_mut().panel = panel;
+                h.run_steps(4);
+                let a = h.state();
+                let mut now = a.doc.clone();
+                now.selected = Vec::new();
+                let mut was = oc_core::Document::from_json(&before).unwrap();
+                was.selected = Vec::new();
+                assert!(
+                    now.to_json() == was.to_json(),
+                    "el documento cambió solo: zoom {zoom}, panel {panel:?}, selección {sel:?}"
+                );
+                assert!(
+                    !a.history.can_undo(),
+                    "historial tocado: zoom {zoom}, panel {panel:?}, selección {sel:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn clicking_a_flat_or_tiny_shape_only_selects_it() {
+    // Lo mismo con el ratón: un clic sobre cada forma la selecciona y nada más.
+    let mut h = app_harness();
+    h.state_mut().doc = varied_doc();
+    h.state_mut().panel = None;
+    h.run_steps(3);
+    let before = h.state().doc.to_json();
+    for (at, zoom) in [
+        ((70.0, 80.0), 1.0),
+        ((130.0, 70.0), 1.0),
+        ((140.1, 70.0), 4.0),
+        ((35.0, 20.0), 1.0),
+    ] {
+        zoom_at_mm(&mut h, at, zoom);
+        click_mm(&mut h, at);
+        h.run_steps(4);
+        assert_eq!(h.state().doc.selected.len(), 1, "en {at:?}");
+        let mut now = h.state().doc.clone();
+        now.selected = Vec::new();
+        let mut was = oc_core::Document::from_json(&before).unwrap();
+        was.selected = Vec::new();
+        assert!(
+            now.to_json() == was.to_json(),
+            "cambió al hacer clic en {at:?}"
+        );
+        assert!(!h.state().history.can_undo());
+        crate::canvas::viewport_actions::fit_to_page(h.state_mut());
+        h.run_steps(2);
+    }
+}
+
+#[test]
+fn hidden_shapes_cannot_be_clicked() {
+    let mut h = two_rects();
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    h.state_mut().doc.shapes[1].visible = false;
+    h.run_steps(2);
+    // Clic donde está la oculta: no se selecciona nada.
+    click_mm(&mut h, (135.0, 40.0));
+    assert!(h.state().doc.selected.is_empty());
+    // Tampoco con el clic derecho ni con Alt + clic.
+    right_click_mm(&mut h, (135.0, 40.0));
+    assert!(h.state().doc.selected.is_empty());
+    assert!(!shows(&h, "Duplicar"));
+    // La visible sí.
+    click_mm(&mut h, (55.0, 40.0));
+    if h.state().doc.selected.is_empty() {
+        click_mm(&mut h, (55.0, 40.0));
+    }
+    assert_eq!(h.state().doc.selected, vec![ids[0]]);
+}
