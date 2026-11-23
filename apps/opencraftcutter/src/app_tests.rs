@@ -3566,3 +3566,136 @@ fn drawing_tools_snap_to_other_shapes() {
     let r = h.state().doc.shapes[1].rect;
     assert_eq!((r.x0, r.y0), (70.0, 70.0), "{r:?}");
 }
+
+// ---------------------------------------------------------------- Guías de regla
+
+/// Arrastra entre dos puntos de la pantalla (px).
+fn drag_px(h: &mut AppHarness, from: egui::Pos2, to: egui::Pos2) {
+    h.hover_at(from);
+    h.step();
+    h.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.step();
+    for k in 1..=8 {
+        h.hover_at(from + (to - from) * (k as f32 / 8.0));
+        h.step();
+    }
+    h.event(egui::Event::PointerButton {
+        pos: to,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    h.run_steps(3);
+}
+
+#[test]
+fn ruler_guides_are_dragged_out_moved_and_removed() {
+    use oc_core::document::Guide;
+    let mut h = app_harness();
+    h.state_mut().panel = None;
+    h.run_steps(3);
+    let stage = h.state().canvas.stage;
+    let vp = h.state().canvas.viewport;
+    let at = |x: f64, y: f64| vp.to_screen(kurbo::Point::new(x, y));
+    // Desde la regla superior sale una guía horizontal; desde la izquierda, una vertical.
+    let on_top_ruler = egui::pos2(stage.center().x, stage.top() - 8.0);
+    drag_px(&mut h, on_top_ruler, at(100.0, 80.0));
+    let on_left_ruler = egui::pos2(stage.left() - 8.0, stage.center().y);
+    drag_px(&mut h, on_left_ruler, at(50.0, 120.0));
+    let g = h.state().doc.page.guides.clone();
+    assert_eq!(g.len(), 2, "{g:?}");
+    assert!(!g[0].vertical && (g[0].pos - 80.0).abs() < 0.5, "{g:?}");
+    assert!(g[1].vertical && (g[1].pos - 50.0).abs() < 0.5, "{g:?}");
+    assert!(h.state().canvas.new_guide.is_none());
+    // Soltarla de vuelta en la regla (sin llegar al lienzo) no crea nada.
+    drag_px(&mut h, on_top_ruler, on_top_ruler + egui::vec2(40.0, 2.0));
+    assert_eq!(h.state().doc.page.guides.len(), 2);
+    // Con Seleccionar, una guía se mueve arrastrándola.
+    let y = h.state().doc.page.guides[0].pos;
+    drag_mm(&mut h, (150.0, y), (150.0, 130.0), egui::Modifiers::NONE);
+    assert!((h.state().doc.page.guides[0].pos - 130.0).abs() < 0.5);
+    // Un solo deshacer la devuelve a su sitio.
+    h.state_mut().undo();
+    assert!((h.state().doc.page.guides[0].pos - y).abs() < 1e-9);
+    // Arrastrarla hasta la regla la borra.
+    drag_px(&mut h, at(150.0, y), on_top_ruler);
+    let g: Vec<Guide> = h.state().doc.page.guides.clone();
+    assert_eq!(g.len(), 1);
+    assert!(g[0].vertical);
+    // «Borrar las guías» quita las que queden, y se puede deshacer.
+    crate::canvas::guides::clear_guides(h.state_mut());
+    assert!(h.state().doc.page.guides.is_empty());
+    h.state_mut().undo();
+    assert_eq!(h.state().doc.page.guides.len(), 1);
+}
+
+#[test]
+fn drawing_and_moving_snap_to_ruler_guides() {
+    use oc_core::document::Guide;
+    let mut h = app_harness();
+    {
+        let a = h.state_mut();
+        a.doc.page.smart_snap = true;
+        a.doc.page.guides = vec![
+            Guide {
+                vertical: true,
+                pos: 100.0,
+            },
+            Guide {
+                vertical: false,
+                pos: 60.0,
+            },
+        ];
+        a.panel = None;
+        a.tool = crate::app::Tool::Line;
+    }
+    h.run_steps(3);
+    // Una línea que acaba cerca del cruce de las dos guías cae justo en él.
+    drag_mm(&mut h, (30.0, 150.0), (100.5, 60.4), egui::Modifiers::NONE);
+    let end = h.state().doc.shapes[0].world_node_paths()[0].nodes[1].p;
+    assert_eq!(end, kurbo::Point::new(100.0, 60.0));
+    // Al mover una forma, su borde se pega a la guía vertical.
+    let mut r = rect(0.0, RED);
+    r.rect = Rect::new(120.0, 100.0, 150.0, 130.0);
+    let id = h.state_mut().doc.add_shape(r);
+    h.state_mut().tool = crate::app::Tool::Select;
+    h.run_steps(2);
+    drag_mm(
+        &mut h,
+        (135.0, 100.0),
+        (115.8, 100.0),
+        egui::Modifiers::NONE,
+    );
+    assert_eq!(h.state().doc.shape(id).unwrap().rect.x0, 100.0);
+    // Con las guías ocultas no se ajusta a ellas (en un documento sin nada más a lo que
+    // ajustarse cerca).
+    let mut hidden = app_harness();
+    {
+        let a = hidden.state_mut();
+        a.doc.page.smart_snap = true;
+        a.doc.page.show_guides = false;
+        a.doc.page.guides = vec![Guide {
+            vertical: false,
+            pos: 60.0,
+        }];
+        a.panel = None;
+        a.tool = crate::app::Tool::Line;
+    }
+    hidden.run_steps(3);
+    drag_mm(
+        &mut hidden,
+        (30.0, 150.0),
+        (90.0, 60.4),
+        egui::Modifiers::NONE,
+    );
+    let end = hidden.state().doc.shapes[0].world_node_paths()[0].nodes[1].p;
+    assert!((end.y - 60.4).abs() < 0.2 && end.y != 60.0, "{end:?}");
+    // Las guías se guardan con el documento.
+    let doc = oc_core::Document::from_json(&h.state().doc.to_json()).unwrap();
+    assert_eq!(doc.page.guides.len(), 2);
+}

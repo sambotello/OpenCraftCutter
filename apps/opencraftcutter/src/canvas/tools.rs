@@ -379,6 +379,17 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
             _ => {
                 if let Some(pos) = hover {
                     match handle_at(app, pos) {
+                        None if tool == Tool::Select
+                            && shape_at(app, vp.to_world(pos)).is_none()
+                            && super::guides::guide_at(app, pos).is_some() =>
+                        {
+                            let i = super::guides::guide_at(app, pos).unwrap_or(0);
+                            if app.doc.page.guides.get(i).is_some_and(|g| g.vertical) {
+                                CursorIcon::ResizeHorizontal
+                            } else {
+                                CursorIcon::ResizeVertical
+                            }
+                        }
                         Some(None) => CursorIcon::Grab,
                         Some(Some(h)) => match h {
                             Handle::NW | Handle::SE => CursorIcon::ResizeNwSe,
@@ -670,6 +681,12 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     app.canvas.drag = Some(Drag::Move {
                         start: p,
                         originals,
+                        committed: false,
+                    });
+                } else if let Some(index) = super::guides::guide_at(app, pos) {
+                    // En vacío y sobre una guía de regla: se mueve la guía.
+                    app.canvas.drag = Some(Drag::Guide {
+                        index,
                         committed: false,
                     });
                 } else {
@@ -1060,6 +1077,17 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     committed,
                 });
             }
+            Drag::Guide {
+                index,
+                mut committed,
+            } => {
+                if !committed {
+                    app.commit();
+                    committed = true;
+                }
+                super::guides::move_guide(app, index, p);
+                app.canvas.drag = Some(Drag::Guide { index, committed });
+            }
             Drag::PenHandle => {
                 // Arrastrar tras poner el nodo le saca dos manejadores simétricos: el de
                 // salida sigue al puntero.
@@ -1179,6 +1207,11 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
             Drag::Freehand { id, points } if points.len() < 2 => {
                 cancel_add(app, id);
             }
+            // Soltada fuera del lienzo (sobre la regla): se borra.
+            Drag::Guide {
+                index,
+                committed: true,
+            } => super::guides::drop_guide(app, index, pos),
             Drag::Knife { start, end } => apply_knife(app, start, end),
             Drag::Erase { path } => apply_eraser(app, &path),
             _ => {}

@@ -415,6 +415,9 @@ fn empty_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui, target: ContextTarget) 
             s.visible = true;
         }
     }
+    if !app.doc.page.guides.is_empty() && item(ui, "Borrar las guías", "") {
+        super::guides::clear_guides(app);
+    }
     ui.separator();
     if item(ui, "Ajustar a la página", "⌘0") {
         viewport_actions::fit_to_page(app);

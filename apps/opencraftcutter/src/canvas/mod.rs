@@ -1,6 +1,7 @@
 //! Lienzo de diseño: vista (paneo/zoom), dibujo de la escena y herramientas de edición.
 
 pub mod context_menu;
+pub mod guides;
 mod overlay;
 pub mod point_edit;
 pub mod render;
@@ -72,6 +73,11 @@ pub enum Drag {
     TraceArea {
         image: ShapeId,
         start: Point,
+    },
+    /// Mover una guía de regla.
+    Guide {
+        index: usize,
+        committed: bool,
     },
     /// Pluma: se arrastra tras poner un nodo para sacarle los manejadores.
     PenHandle,
@@ -165,6 +171,8 @@ pub struct CanvasState {
     pub text_outlines: std::collections::HashMap<ShapeId, crate::text::Outlines>,
     /// Guías del ajuste en curso en Editar puntos: (objetivo, punto ajustado), en mm.
     pub snap_guides: Vec<(Point, Point)>,
+    /// Guía que se está sacando de una regla (aún no está en el documento).
+    pub new_guide: Option<oc_core::document::Guide>,
     /// Objetivos de ajuste para dibujar, con la huella del documento con que se calcularon.
     pub draw_snap: Option<(u64, std::sync::Arc<Vec<Point>>)>,
     /// Puntero ya ajustado mientras se usa una herramienta de dibujo (para las vistas previas).
@@ -206,6 +214,7 @@ impl Default for CanvasState {
             eraser_width_mm: 3.0,
             text_outlines: std::collections::HashMap::new(),
             snap_guides: Vec::new(),
+            new_guide: None,
             draw_snap: None,
             snap_cursor: None,
             move_guides: Vec::new(),
@@ -252,6 +261,17 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
         viewport_actions::fit_to_page(app);
     }
 
+    // Reglas: arrastrar desde ellas saca una guía.
+    let top = ERect::from_min_max(
+        egui::pos2(stage.min.x, full.min.y),
+        egui::pos2(full.max.x, stage.min.y),
+    );
+    let left = ERect::from_min_max(
+        egui::pos2(full.min.x, stage.min.y),
+        egui::pos2(stage.min.x, full.max.y),
+    );
+    guides::handle_rulers(app, ui, top, left);
+
     let response = ui.allocate_rect(stage, egui::Sense::click_and_drag());
     tools::handle_input(app, ui, &response);
     if response.secondary_clicked() {
@@ -268,6 +288,7 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     if sending {
         send_overlay::draw(app, &painter, stage);
     }
+    guides::draw(app, &painter, &app.canvas.viewport);
     overlay::draw_overlay(app, &painter);
     render::draw_rulers(app, &ui.painter_at(full), full);
     text_edit::show_text_editor(app, ui);
