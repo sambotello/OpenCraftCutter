@@ -3447,3 +3447,51 @@ fn hidden_shapes_cannot_be_clicked() {
     }
     assert_eq!(h.state().doc.selected, vec![ids[0]]);
 }
+
+#[test]
+fn pen_continues_an_open_path_from_its_end() {
+    let mut h = pen();
+    h.state_mut()
+        .doc
+        .add_shape(line((40.0, 40.0), (90.0, 40.0)));
+    let id = h.state().doc.shapes[0].id;
+    h.run_steps(2);
+    // Clic sobre el extremo final: se continúa ese trazado (no se crea otro).
+    click_mm(&mut h, (90.0, 40.0));
+    assert_eq!(h.state().canvas.pen.as_ref().map(Vec::len), Some(2));
+    assert_eq!(h.state().canvas.pen_extends, Some((id, 0)));
+    click_mm(&mut h, (90.0, 80.0));
+    click_mm(&mut h, (60.0, 100.0));
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    let a = h.state();
+    assert_eq!(a.doc.shapes.len(), 1, "sigue siendo la misma forma");
+    let np = a.doc.shapes[0].world_node_paths()[0].clone();
+    assert_eq!(np.nodes.len(), 4);
+    assert!(!np.closed && np.nodes[0].p.distance(kurbo::Point::new(40.0, 40.0)) < 1e-6);
+    assert!(np.nodes[3].p.distance(kurbo::Point::new(60.0, 100.0)) < 0.5);
+    assert_eq!(a.doc.shapes[0].stroke.width_pt, 1.0, "conserva su estilo");
+    // Un solo deshacer quita lo añadido y deja la línea original.
+    h.state_mut().undo();
+    assert_eq!(h.state().doc.shapes[0].world_node_paths()[0].nodes.len(), 2);
+    // Desde el otro extremo: se continúa por ahí, y un clic en el extremo opuesto lo cierra.
+    click_mm(&mut h, (40.0, 40.0));
+    assert_eq!(h.state().canvas.pen_extends, Some((id, 0)));
+    click_mm(&mut h, (40.0, 90.0));
+    click_mm(&mut h, (90.0, 40.0));
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    assert_eq!(a.doc.shapes.len(), 1);
+    let np = a.doc.shapes[0].world_node_paths()[0].clone();
+    assert!(np.closed && np.nodes.len() == 3, "{np:?}");
+    // Empezar y terminar sin añadir nada no toca el documento ni el historial.
+    let mut h = pen();
+    h.state_mut()
+        .doc
+        .add_shape(line((40.0, 40.0), (90.0, 40.0)));
+    h.run_steps(2);
+    click_mm(&mut h, (90.0, 40.0));
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    assert!(!h.state().history.can_undo());
+}

@@ -115,6 +115,7 @@ pub const PEN_CLOSE_PX: f64 = 8.0;
 /// menos de dos puntos no queda nada.
 pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
     app.canvas.drag = None;
+    let extends = app.canvas.pen_extends.take();
     let Some(mut nodes) = app.canvas.pen.take() else {
         return;
     };
@@ -131,15 +132,65 @@ pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
             last.h_out = None;
         }
     }
+    let path = oc_core::nodes::NodePath { nodes, closed };
+    // Continuación de un trazado que ya existía: se sustituye en su forma.
+    if let Some((id, si)) = extends {
+        let paths = app.doc.shape(id).map(|s| s.world_edit_paths());
+        if let Some(mut paths) = paths.filter(|p| si < p.len()) {
+            if paths[si] == path {
+                return; // No se añadió nada.
+            }
+            paths[si] = path;
+            app.commit();
+            if let Some(s) = app.doc.shape_mut(id) {
+                s.set_world_node_paths(&paths);
+            }
+            app.doc.selected = vec![id];
+            return;
+        }
+    }
     let kind = ShapeKind::Path {
         subpaths: Vec::new(),
         fill_rule: Default::default(),
     };
     let mut s = new_shape(app, "Trazo", Rect::ZERO, kind);
-    s.set_world_node_paths(&[oc_core::nodes::NodePath { nodes, closed }]);
+    s.set_world_node_paths(&[path]);
     app.commit();
     let id = app.doc.add_shape(s);
     app.doc.selected = vec![id];
+}
+
+/// Extremo libre de un trazado abierto bajo el puntero, para continuarlo con la Pluma:
+/// (forma, subtrazo, nodos ordenados de modo que ese extremo quede el último). Solo trazos sin
+/// girar ni bloquear.
+fn open_end_at(
+    app: &OpenCraftCutterApp,
+    p: Point,
+) -> Option<(u64, usize, Vec<oc_core::nodes::Node>)> {
+    let tol = PEN_CLOSE_PX / app.canvas.viewport.scale;
+    for s in app.doc.shapes.iter().rev() {
+        let editable = s.visible
+            && !s.locked
+            && s.rotation == 0.0
+            && s.punch_mm.is_none()
+            && matches!(s.kind, ShapeKind::Path { .. });
+        if !editable {
+            continue;
+        }
+        for (si, np) in s.world_edit_paths().into_iter().enumerate() {
+            if np.closed || np.nodes.len() < 2 {
+                continue;
+            }
+            let last = np.nodes.len() - 1;
+            if np.nodes[last].p.distance(p) <= tol {
+                return Some((s.id, si, np.nodes));
+            }
+            if np.nodes[0].p.distance(p) <= tol {
+                return Some((s.id, si, np.reversed().nodes));
+            }
+        }
+    }
+    None
 }
 
 fn create_text(app: &mut OpenCraftCutterApp, _ctx: &egui::Context, at: Point) {
@@ -602,6 +653,16 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                 }
             }
             Tool::Pen => {
+                // Empezar sobre el extremo de un trazado abierto lo continúa.
+                if app.canvas.pen.is_none() {
+                    if let Some((id, si, nodes)) = open_end_at(app, p) {
+                        app.canvas.pen = Some(nodes);
+                        app.canvas.pen_extends = Some((id, si));
+                        app.doc.selected = vec![id];
+                        app.canvas.drag = Some(Drag::PenHandle);
+                        return;
+                    }
+                }
                 let nodes = app.canvas.pen.get_or_insert_with(Vec::new);
                 let on_first = nodes.len() >= 3 && nodes[0].p.distance(p) * vp.scale < PEN_CLOSE_PX;
                 if on_first {

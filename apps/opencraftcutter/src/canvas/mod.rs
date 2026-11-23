@@ -124,6 +124,8 @@ pub struct CanvasState {
     pub polygon: Option<Vec<Point>>,
     /// Trazado que se está dibujando con la Pluma.
     pub pen: Option<Vec<oc_core::nodes::Node>>,
+    /// Si la Pluma está continuando un trazado abierto que ya existía: (forma, subtrazo).
+    pub pen_extends: Option<(ShapeId, usize)>,
     pub cursor_mm: Option<Point>,
     pub editing_text: Option<ShapeId>,
     pub send: SendSettings,
@@ -177,6 +179,7 @@ impl Default for CanvasState {
             marquee: None,
             polygon: None,
             pen: None,
+            pen_extends: None,
             cursor_mm: None,
             editing_text: None,
             send: SendSettings::default(),
@@ -216,6 +219,7 @@ pub fn pen_remove_last(app: &mut OpenCraftCutterApp) {
         nodes.pop();
         if nodes.is_empty() {
             app.canvas.pen = None;
+            app.canvas.pen_extends = None;
         }
     }
     app.canvas.drag = None;

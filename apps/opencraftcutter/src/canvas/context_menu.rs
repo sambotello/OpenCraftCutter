@@ -463,6 +463,7 @@ fn pen_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     }
     if item(ui, "Cancelar", "") {
         app.canvas.pen = None;
+        app.canvas.pen_extends = None;
         app.canvas.drag = None;
     }
 }
