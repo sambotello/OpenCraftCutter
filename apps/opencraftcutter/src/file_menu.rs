@@ -117,6 +117,42 @@ impl OpenCraftCutterApp {
         self.autosave_into(&recovery_dir());
     }
 
+    /// Muestra el registro de errores en el explorador de archivos (o avisa de que no hay).
+    pub fn show_error_log(&mut self, ctx: &egui::Context) {
+        let path = error_log_path();
+        if !path.exists() {
+            return self.notify(ctx, "No hay errores registrados.");
+        }
+        // En las pruebas no se abre ninguna ventana del sistema.
+        let shown = cfg!(test)
+            || if cfg!(target_os = "macos") {
+                std::process::Command::new("open")
+                    .arg("-R")
+                    .arg(&path)
+                    .spawn()
+            } else if cfg!(target_os = "windows") {
+                std::process::Command::new("explorer")
+                    .arg("/select,")
+                    .arg(&path)
+                    .spawn()
+            } else {
+                std::process::Command::new("xdg-open")
+                    .arg(path.parent().unwrap_or(&path))
+                    .spawn()
+            }
+            .is_ok();
+        if !shown {
+            self.notify(ctx, format!("El registro está en {}", path.display()));
+        }
+    }
+
+    /// Copia de recuperación inmediata (tras un fallo de cálculo, sin esperar al temporizador).
+    pub fn autosave_now(&mut self) {
+        if !cfg!(test) {
+            self.autosave_into(&recovery_dir());
+        }
+    }
+
     /// Escribe la copia de recuperación en `dir` si hay cambios sin guardar.
     pub fn autosave_into(&mut self, dir: &Path) {
         if !self.dirty || self.doc.shapes.is_empty() {
@@ -396,6 +432,10 @@ pub fn menu(app: &mut OpenCraftCutterApp, ui: &mut egui::Ui) {
             }
         });
     });
+    if item(ui, "Mostrar el registro de errores", "", true) {
+        app.show_error_log(&ctx);
+        ui.close();
+    }
     if item(ui, "Abre un archivo recuperado…", "", true) {
         app.open_recovered(&ctx);
         ui.close();
