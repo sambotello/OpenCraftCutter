@@ -264,6 +264,15 @@ impl Gradient {
     }
 }
 
+/// Cuánto ha crecido una medida respecto a su referencia (1 si la referencia es 0).
+fn scale_factor(now: f64, reference: f64) -> f64 {
+    if reference > 0.0 {
+        now / reference
+    } else {
+        1.0
+    }
+}
+
 /// Polilínea con puntos normalizados (0..1) respecto a la caja de la forma.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Subpath {
@@ -401,6 +410,11 @@ pub struct Shape {
     /// Portaherramientas y líneas que se envían a la máquina.
     #[serde(default)]
     pub cut: crate::send::CutAssign,
+    /// Tamaño (ancho, alto en mm) que tenía la forma cuando se fijaron sus esquinas
+    /// redondeadas. Los arcos se calculan a ese tamaño y luego se escalan con la forma: así lo
+    /// que se dibuja ocupa siempre exactamente la caja, también tras cambiarle el tamaño.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rounding_ref: Option<[f64; 2]>,
     pub kind: ShapeKind,
 }
 
@@ -423,6 +437,7 @@ impl Shape {
             tool_fill: None,
             punch_mm: None,
             cut: Default::default(),
+            rounding_ref: None,
             kind,
         }
     }
@@ -470,9 +485,28 @@ impl Shape {
     /// radio ya son arcos. Rectángulos y elipses dan sus nodos equivalentes; textos e imágenes,
     /// ninguno. Para editar los nodos (con su radio) está [`Shape::world_edit_paths`].
     pub fn world_node_paths(&self) -> Vec<crate::nodes::NodePath> {
-        self.world_edit_paths()
+        let (r, ShapeKind::Path { subpaths, .. }) = (self.rect, &self.kind) else {
+            return Vec::new();
+        };
+        let rounded = subpaths.iter().any(|sp| {
+            sp.handles
+                .as_ref()
+                .is_some_and(|h| h.iter().any(|h| h.radius > 0.0))
+        });
+        if !rounded {
+            return self.world_edit_paths();
+        }
+        // Los arcos se calculan al tamaño de referencia (donde el radio es el guardado) y el
+        // resultado se lleva a la caja actual.
+        let [w0, h0] = self.rounding_ref.unwrap_or([r.width(), r.height()]);
+        let (kx, ky) = (scale_factor(r.width(), w0), scale_factor(r.height(), h0));
+        subpaths
             .iter()
-            .map(crate::nodes::NodePath::resolved)
+            .map(|sp| {
+                sp.node_path(|p: Point| Point::new(p.x * w0, p.y * h0))
+                    .resolved()
+                    .map(|q: Point| Point::new(r.x0 + q.x * kx, r.y0 + q.y * ky))
+            })
             .collect()
     }
 
@@ -483,7 +517,21 @@ impl Shape {
         match &self.kind {
             ShapeKind::Path { subpaths, .. } => {
                 let f = |p: Point| Point::new(r.x0 + p.x * r.width(), r.y0 + p.y * r.height());
-                subpaths.iter().map(|sp| sp.node_path(f)).collect()
+                // Si la forma cambió de tamaño desde que se redondeó, el radio que se edita
+                // es el equivalente al tamaño actual.
+                let k = self.rounding_ref.map_or(1.0, |[w0, h0]| {
+                    (scale_factor(r.width(), w0) * scale_factor(r.height(), h0)).sqrt()
+                });
+                subpaths
+                    .iter()
+                    .map(|sp| {
+                        let mut np = sp.node_path(f);
+                        for n in &mut np.nodes {
+                            n.radius *= k;
+                        }
+                        np
+                    })
+                    .collect()
             }
             _ => Vec::new(),
         }
@@ -533,6 +581,10 @@ impl Shape {
             })
             .collect();
         self.rect = b;
+        self.rounding_ref = paths
+            .iter()
+            .any(crate::nodes::NodePath::has_rounding)
+            .then_some([w, h]);
         match &mut self.kind {
             ShapeKind::Path { subpaths: sp, .. } => *sp = subpaths,
             other => {
@@ -670,6 +722,71 @@ mod rounding_tests {
         // La caja es la de lo que se corta: la punta redondeada no llega a y = 30.
         assert!(s.rect.y1 < 29.0 && s.rect.y1 > 20.0, "{:?}", s.rect);
         assert_eq!((s.rect.x0, s.rect.x1, s.rect.y0), (0.0, 40.0, 0.0));
+    }
+
+    /// Caja de lo que se dibuja y se corta.
+    fn drawn_bounds(s: &Shape) -> Rect {
+        let mut b: Option<Rect> = None;
+        for (pts, _) in s.world_subpaths() {
+            for p in pts {
+                let r = Rect::from_points(p, p);
+                b = Some(b.map_or(r, |o| o.union(r)));
+            }
+        }
+        b.unwrap()
+    }
+
+    #[test]
+    fn resizing_a_rounded_shape_keeps_it_exactly_in_its_box() {
+        let s = triangle();
+        // Margen: las curvas se miden aplanadas, con la tolerancia de siempre (0,02 mm).
+        let tol = 2.0 * crate::nodes::FLATTEN_TOL_MM;
+        let close = |a: Rect, b: Rect| {
+            (a.x0 - b.x0).abs() < tol
+                && (a.y0 - b.y0).abs() < tol
+                && (a.x1 - b.x1).abs() < tol
+                && (a.y1 - b.y1).abs() < tol
+        };
+        assert!(close(drawn_bounds(&s), s.rect));
+        // Al doble, proporcional: todo se dobla, también el radio que se edita.
+        let mut big = s.clone();
+        big.rect = Rect::new(
+            100.0,
+            50.0,
+            100.0 + 2.0 * s.rect.width(),
+            50.0 + 2.0 * s.rect.height(),
+        );
+        assert!(
+            close(drawn_bounds(&big), big.rect),
+            "{:?} {:?}",
+            drawn_bounds(&big),
+            big.rect
+        );
+        assert!((big.world_edit_paths()[0].nodes[2].radius - 10.0).abs() < 1e-9);
+        // Estirada solo a lo ancho: lo dibujado sigue ocupando exactamente la caja.
+        let mut wide = s.clone();
+        wide.rect = Rect::new(0.0, 0.0, 3.0 * s.rect.width(), s.rect.height());
+        assert!(
+            close(drawn_bounds(&wide), wide.rect),
+            "{:?} {:?}",
+            drawn_bounds(&wide),
+            wide.rect
+        );
+        // Al volver a editar los puntos, la caja sigue siendo la de lo que se corta.
+        let mut edited = wide.clone();
+        let paths = edited.world_edit_paths();
+        edited.set_world_node_paths(&paths);
+        assert!(close(drawn_bounds(&edited), edited.rect));
+        assert_eq!(
+            edited.rounding_ref,
+            Some([edited.rect.width(), edited.rect.height()])
+        );
+        // Sin redondeos no se guarda referencia.
+        let mut plain = s.clone();
+        let mut paths = plain.world_edit_paths();
+        paths[0].nodes[2].radius = 0.0;
+        plain.set_world_node_paths(&paths);
+        assert_eq!(plain.rounding_ref, None);
     }
 
     #[test]
