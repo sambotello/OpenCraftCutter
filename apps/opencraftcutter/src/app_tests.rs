@@ -2928,3 +2928,40 @@ fn error_log_keeps_every_failure_and_rotates() {
     assert!(std::fs::metadata(&path).unwrap().len() < 10_000);
     assert!(path.with_file_name("errores.anterior.log").exists());
 }
+
+// ---------------------------------------------------------------- Renombrar en Capas
+
+#[test]
+fn layers_panel_renames_a_shape() {
+    use egui::Key;
+    let mut h = two_rects();
+    let ids: Vec<u64> = h.state().doc.shapes.iter().map(|s| s.id).collect();
+    h.state_mut().doc.shapes[1].name = "Azul".into();
+    h.state_mut().panel = Some(crate::app::Panel::Layers);
+    h.run_steps(3);
+    // Desde el menú contextual de la fila.
+    h.get_by_label_contains("Azul").click_secondary();
+    h.run_steps(3);
+    click(&mut h, "Renombrar");
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.run_steps(1);
+    h.get_by_label("Nombre de la forma")
+        .type_text("Tapa de la caja");
+    h.run_steps(2);
+    h.key_press(Key::Enter);
+    h.run_steps(3);
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Tapa de la caja");
+    assert!(
+        h.query_by_label("Nombre de la forma").is_none(),
+        "el campo se cierra"
+    );
+    // Un solo deshacer devuelve el nombre.
+    h.state_mut().undo();
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Azul");
+    // Un nombre vacío no se acepta, y el mismo nombre no toca el historial.
+    let before = h.state().doc.shape(ids[0]).unwrap().name.clone();
+    h.state_mut().rename_shape(ids[0], &before);
+    h.state_mut().undo();
+    h.state_mut().redo();
+    assert_eq!(h.state().doc.shape(ids[1]).unwrap().name, "Tapa de la caja");
+}
