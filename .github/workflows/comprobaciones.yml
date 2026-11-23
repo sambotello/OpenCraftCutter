@@ -1,0 +1,39 @@
+# Lo mismo que scripts/check.sh, en cada PR y en cada cambio de main: formato, clippy y pruebas.
+#
+# Diferencias con scripts/check.sh:
+# - No se ejecutan las pruebas `snapshot_`: comparan capturas hechas con las fuentes y la GPU
+#   del equipo de desarrollo, y en otra máquina no coinciden. Siguen pasando en local.
+# - La versión de Rust está fijada: una versión nueva de clippy no debe poner un PR en rojo
+#   por reglas que el cambio no tocó. Al subirla aquí, pasar antes scripts/check.sh con ella.
+name: Comprobaciones
+
+"on":
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: comprobaciones-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  comprobar:
+    name: Formato, clippy y pruebas
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.95.0"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Formato
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Pruebas
+        run: cargo test --workspace -- --skip snapshot_

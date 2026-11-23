@@ -735,11 +735,14 @@ impl eframe::App for OpenCraftCutterApp {
         // Un cálculo de geometría falló (forma con coordenadas no válidas): se avisa en vez de
         // cerrar la app; la traza queda en el registro de errores.
         if let Some(what) = oc_core::guard::take_failure() {
+            // Por si lo siguiente va a peor: copia de recuperación ahora, no en dos minutos.
+            self.autosave_now();
             self.notify(
                 ctx,
                 format!(
                     "No se pudo calcular {what}: alguna forma tiene medidas no válidas. \
-                     Deshaz el último cambio o bórrala. Detalles en errores.log."
+                     Deshaz el último cambio o bórrala. Detalles en Archivo › Mostrar el \
+                     registro de errores (errores.log)."
                 ),
             );
         }

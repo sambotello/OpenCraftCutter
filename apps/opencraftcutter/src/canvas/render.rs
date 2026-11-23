@@ -799,7 +799,7 @@ pub type StrokeCache = std::cell::RefCell<
 fn stroke_fingerprint(s: &Shape) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
-    serde_json::to_string(&(&s.rect, s.rotation, &s.stroke, &s.kind))
+    serde_json::to_string(&(&s.rect, s.rotation, &s.stroke, &s.kind, s.rounding_ref))
         .unwrap_or_default()
         .hash(&mut h);
     h.finish()
