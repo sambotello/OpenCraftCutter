@@ -281,6 +281,57 @@ fn fillet(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     );
 }
 
+/// Pestaña de pegado sobre los tramos rectos seleccionados: fondo, ángulo de los lados y el
+/// botón que la añade.
+fn glue_tab(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
+    let unit = app.doc.page.unit;
+    let mut width = unit.from_mm(app.canvas.tab_width_mm);
+    super::row(ui, "Fondo", |ui| {
+        let r = ui.add(
+            egui::DragValue::new(&mut width)
+                .speed(unit.from_mm(0.5))
+                .range(unit.from_mm(2.0)..=unit.from_mm(50.0))
+                .fixed_decimals(unit.decimals() + 1)
+                .suffix(format!(" {}", unit.label())),
+        );
+        crate::theme::name_widget(&r, "Fondo de la pestaña");
+    });
+    app.canvas.tab_width_mm = unit.to_mm(width);
+    super::row(ui, "Ángulo", |ui| {
+        let r = ui.add(
+            egui::DragValue::new(&mut app.canvas.tab_angle_deg)
+                .speed(1.0)
+                .range(30.0..=90.0)
+                .fixed_decimals(0)
+                .suffix("°"),
+        );
+        crate::theme::name_widget(&r, "Ángulo de la pestaña");
+    });
+    let n = app.tab_segments().len();
+    let text = RichText::new(format!(
+        "{}   Añadir pestaña de pegado",
+        <&str>::from(mi::ICON_ADD)
+    ));
+    if ui
+        .add_enabled(
+            n > 0,
+            egui::Button::new(text).min_size(EVec2::new(ui.available_width(), 30.0)),
+        )
+        .clicked()
+    {
+        app.point_add_glue_tabs();
+    }
+    hint(
+        ui,
+        if n > 0 {
+            "La pestaña sale hacia fuera del tramo recto seleccionado, y el tramo queda como \
+             línea de doblez (en azul, para darle «Marcar» al enviar)."
+        } else {
+            "Selecciona los dos puntos de un tramo recto (o haz clic derecho sobre el tramo)."
+        },
+    );
+}
+
 /// Fila de tres botones de alineación: (icono, ayuda, modo).
 type AlignRow = [(MaterialIcon, &'static str, oc_core::arrange::Align); 3];
 
@@ -396,6 +447,8 @@ pub fn show(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     );
     super::section(ui, "Redondear esquina");
     fillet(app, ui);
+    super::section(ui, "Pestaña de pegado");
+    glue_tab(app, ui);
     super::section(ui, "Alinear puntos");
     align(app, ui);
     super::section(ui, "Trazo seleccionado");

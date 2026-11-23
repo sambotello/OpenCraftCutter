@@ -813,6 +813,119 @@ impl OpenCraftCutterApp {
         self.canvas.point_multi = selected.into_iter().collect();
     }
 
+    /// Tramos rectos seleccionados (los que admiten una pestaña de pegado).
+    pub fn tab_segments(&self) -> Vec<(usize, usize)> {
+        let Some((_, paths)) = edited_paths(self) else {
+            return Vec::new();
+        };
+        self.midpoint_segments()
+            .into_iter()
+            .filter(|(si, seg)| {
+                paths
+                    .get(*si)
+                    .is_some_and(|np| *seg < np.segment_count() && np.segment(*seg).1.is_none())
+            })
+            .collect()
+    }
+
+    /// Añade una pestaña de pegado a cada tramo recto seleccionado, con el fondo y el ángulo
+    /// elegidos en el panel.
+    pub fn point_add_glue_tabs(&mut self) {
+        let segs = self.tab_segments();
+        self.point_add_glue_tabs_on(&segs);
+    }
+
+    /// Añade una pestaña de pegado a los tramos `segs` (subtrazo, tramo): el contorno gana el
+    /// trapecio y el tramo original queda como línea de doblez, en azul y a rayas (como en las
+    /// plantillas), agrupada con la forma. Todo es una sola entrada de historial.
+    pub fn point_add_glue_tabs_on(&mut self, segs: &[(usize, usize)]) {
+        let Some(pe) = self.canvas.point_edit else {
+            return;
+        };
+        let (width, angle) = (self.canvas.tab_width_mm, self.canvas.tab_angle_deg);
+        // De atrás hacia delante: cada pestaña añade dos nodos y no mueve los tramos anteriores.
+        let mut order: Vec<(usize, usize)> = segs.to_vec();
+        order.sort();
+        order.dedup();
+        let mut folds: Vec<(Point, Point)> = Vec::new();
+        let mut new_nodes: Vec<(usize, usize)> = Vec::new();
+        self.edit_nodes(true, |p, sel| {
+            for &(si, seg) in order.iter().rev() {
+                let Some(np) = p.get_mut(si) else {
+                    continue;
+                };
+                if let Some(fold) = nodes::add_glue_tab(np, seg, width, angle) {
+                    folds.push(fold);
+                    for n in new_nodes.iter_mut().filter(|n| n.0 == si) {
+                        n.1 += 2;
+                    }
+                    new_nodes.extend([(si, seg + 1), (si, seg + 2)]);
+                }
+            }
+            new_nodes.sort();
+            *sel = new_nodes.first().copied();
+        });
+        if folds.is_empty() {
+            // Nada cambió: se retira la entrada de historial que abrió `edit_nodes`.
+            self.undo();
+            self.history.clear_future();
+            self.canvas.point_edit = Some(pe);
+            return;
+        }
+        self.canvas.point_multi = new_nodes.into_iter().collect();
+        self.add_fold_lines(pe.shape, &folds);
+    }
+
+    /// Añade líneas de doblez a la forma `id`: en su forma de dobleces si ya tiene una en el
+    /// grupo, o en una nueva (azul, a rayas) agrupada con ella.
+    fn add_fold_lines(&mut self, id: u64, folds: &[(Point, Point)]) {
+        let Some(shape) = self.doc.shape(id).cloned() else {
+            return;
+        };
+        let suffix = ": dobleces";
+        let group = shape.group.unwrap_or_else(|| self.doc.next_id());
+        if let Some(s) = self.doc.shape_mut(id) {
+            s.group = Some(group);
+        }
+        let lines = folds.iter().map(|(a, b)| (vec![*a, *b], false));
+        let existing = self
+            .doc
+            .shapes
+            .iter()
+            .find(|s| {
+                s.id != id
+                    && s.group == Some(group)
+                    && s.name.ends_with(suffix)
+                    && s.rotation == 0.0
+                    && matches!(s.kind, ShapeKind::Path { .. })
+            })
+            .map(|s| s.id);
+        if let Some(fid) = existing {
+            if let Some(f) = self.doc.shape_mut(fid) {
+                let mut all = f.world_subpaths();
+                all.extend(lines);
+                f.set_world_subpaths(&all);
+            }
+            return;
+        }
+        let all: Vec<(Vec<Point>, bool)> = lines.collect();
+        let (rect, subpaths) = Shape::normalize_subpaths(&all);
+        let mut f = Shape::new(
+            0,
+            format!("{}{suffix}", shape.name),
+            rect,
+            ShapeKind::Path {
+                subpaths,
+                fill_rule: oc_core::FillRule::EvenOdd,
+            },
+        );
+        f.fill = None;
+        f.stroke.color = oc_core::Color::rgb(0x20, 0x30, 0xdf);
+        f.stroke.style = oc_core::shape::LineStyle::Dashed;
+        f.group = Some(group);
+        self.doc.add_shape(f);
+    }
+
     /// Convierte un tramo concreto en recta (`false`) o curva (`true`).
     pub fn point_segment_set(&mut self, si: usize, seg: usize, curve: bool) {
         self.edit_nodes(true, |p, _| {

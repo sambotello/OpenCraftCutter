@@ -171,6 +171,9 @@ pub struct CanvasState {
     pub text_outlines: std::collections::HashMap<ShapeId, crate::text::Outlines>,
     /// Guías del ajuste en curso en Editar puntos: (objetivo, punto ajustado), en mm.
     pub snap_guides: Vec<(Point, Point)>,
+    /// Pestañas de pegado: fondo (mm) y ángulo de los lados (grados) de la próxima.
+    pub tab_width_mm: f64,
+    pub tab_angle_deg: f64,
     /// Guía que se está sacando de una regla (aún no está en el documento).
     pub new_guide: Option<oc_core::document::Guide>,
     /// Objetivos de ajuste para dibujar, con la huella del documento con que se calcularon.
@@ -214,6 +217,8 @@ impl Default for CanvasState {
             eraser_width_mm: 3.0,
             text_outlines: std::collections::HashMap::new(),
             snap_guides: Vec::new(),
+            tab_width_mm: 8.0,
+            tab_angle_deg: 60.0,
             new_guide: None,
             draw_snap: None,
             snap_cursor: None,
