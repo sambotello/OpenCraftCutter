@@ -3094,3 +3094,134 @@ fn moving_a_shape_shows_what_it_snapped_to() {
     assert!(h.state().canvas.move_guides.is_empty());
     assert_eq!(h.state().doc.shape(ids[1]).unwrap().rect.y0, 70.0);
 }
+
+// ---------------------------------------------------------------- Pluma
+
+/// App con la Pluma elegida.
+fn pen() -> AppHarness {
+    let mut h = app_harness();
+    h.state_mut().tool = crate::app::Tool::Pen;
+    h.state_mut().panel = None;
+    h.run_steps(2);
+    h
+}
+
+#[test]
+fn pen_clicks_make_corners_and_enter_finishes() {
+    let mut h = pen();
+    for p in [(40.0, 40.0), (90.0, 40.0), (90.0, 80.0)] {
+        click_mm(&mut h, p);
+    }
+    assert_eq!(h.state().canvas.pen.as_ref().map(Vec::len), Some(3));
+    assert!(h.state().doc.shapes.is_empty(), "aún no es una forma");
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    assert_eq!(a.doc.shapes.len(), 1);
+    let np = &a.doc.shapes[0].world_node_paths()[0];
+    assert!(!np.closed && np.nodes.len() == 3);
+    assert!(np.nodes.iter().all(|n| !n.is_bezier()), "solo esquinas");
+    assert!(np.nodes[2].p.distance(kurbo::Point::new(90.0, 80.0)) < 0.5);
+    assert_eq!(a.doc.selected, vec![a.doc.shapes[0].id]);
+    // Todo el trazado es una sola entrada de historial.
+    h.state_mut().undo();
+    assert!(h.state().doc.shapes.is_empty());
+}
+
+#[test]
+fn pen_drag_makes_a_curve_and_clicking_the_start_closes() {
+    let mut h = pen();
+    click_mm(&mut h, (40.0, 60.0));
+    // Arrastrar al poner el segundo nodo saca sus manejadores.
+    drag_mm(&mut h, (80.0, 40.0), (95.0, 40.0), egui::Modifiers::NONE);
+    {
+        let n = h.state().canvas.pen.as_ref().unwrap()[1];
+        assert!(n.p.distance(kurbo::Point::new(80.0, 40.0)) < 0.5);
+        let (hi, ho) = (n.h_in.unwrap(), n.h_out.unwrap());
+        assert!(
+            (ho.x - 95.0).abs() < 0.5 && (hi.x - 65.0).abs() < 0.5,
+            "{n:?}"
+        );
+        assert!(n.smooth && n.symmetric);
+    }
+    click_mm(&mut h, (80.0, 90.0));
+    // Clic sobre el primer nodo: cierra y termina.
+    click_mm(&mut h, (40.0, 60.0));
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    let np = &a.doc.shapes[0].world_node_paths()[0];
+    assert!(np.closed && np.nodes.len() == 3, "{np:?}");
+    assert!(np.segment(0).1.is_some(), "el primer tramo es curvo");
+    assert!(np.segment(1).1.is_some() && np.segment(2).1.is_none());
+}
+
+#[test]
+fn pen_shift_backspace_and_tool_change() {
+    let mut h = pen();
+    click_mm(&mut h, (40.0, 40.0));
+    // Mayús: el tramo queda horizontal aunque el clic esté algo más abajo.
+    let pos = h
+        .state()
+        .canvas
+        .viewport
+        .to_screen(kurbo::Point::new(90.0, 43.0));
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::SHIFT));
+    h.hover_at(pos);
+    h.step();
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::SHIFT,
+        });
+        h.step();
+    }
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+    h.run_steps(2);
+    let (first, second) = {
+        let n = h.state().canvas.pen.as_ref().unwrap();
+        (n[0].p, n[1].p)
+    };
+    assert_eq!(
+        second.y, first.y,
+        "misma altura exacta que el punto anterior"
+    );
+    assert!((second.x - 90.0).abs() < 0.5, "{second:?}");
+    // ⌫ quita el último punto.
+    click_mm(&mut h, (120.0, 90.0));
+    h.key_press(egui::Key::Backspace);
+    h.run_steps(2);
+    assert_eq!(h.state().canvas.pen.as_ref().map(Vec::len), Some(2));
+    // Cambiar de herramienta termina el trazado.
+    h.state_mut().tool = crate::app::Tool::Select;
+    h.run_steps(3);
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    assert_eq!(a.doc.shapes.len(), 1);
+    assert_eq!(a.doc.shapes[0].world_node_paths()[0].nodes.len(), 2);
+    // Un solo punto no es un trazado: no se añade nada.
+    h.state_mut().tool = crate::app::Tool::Pen;
+    h.run_steps(2);
+    click_mm(&mut h, (150.0, 150.0));
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    assert_eq!(h.state().doc.shapes.len(), 1);
+    assert!(h.state().canvas.pen.is_none());
+}
+
+#[test]
+fn pen_double_click_finishes_and_context_menu_closes() {
+    let mut h = pen();
+    click_mm(&mut h, (40.0, 40.0));
+    click_mm(&mut h, (90.0, 40.0));
+    click_mm(&mut h, (90.0, 80.0));
+    right_click_mm(&mut h, (60.0, 120.0));
+    assert!(shows(&h, "Terminar sin cerrar") && shows(&h, "Quitar el último punto"));
+    click(&mut h, "Cerrar trazado");
+    let a = h.state();
+    assert!(a.canvas.pen.is_none());
+    let np = &a.doc.shapes[0].world_node_paths()[0];
+    assert!(np.closed && np.nodes.len() == 3);
+}

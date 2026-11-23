@@ -35,7 +35,7 @@ pub fn secondary_click(app: &mut OpenCraftCutterApp, pos: egui::Pos2) {
     let at = app.canvas.viewport.to_world(pos);
     let mut target = ContextTarget { at, hit: None };
     app.canvas.drag = None;
-    if app.canvas.polygon.is_some() {
+    if app.canvas.polygon.is_some() || app.canvas.pen.is_some() {
         app.canvas.context = Some(target);
         return;
     }
@@ -78,7 +78,9 @@ pub fn show(app: &mut OpenCraftCutterApp, response: &Response) {
             at: app.canvas.cursor_mm.unwrap_or(Point::ZERO),
             hit: None,
         });
-        if app.canvas.polygon.is_some() {
+        if app.canvas.pen.is_some() {
+            pen_menu(app, ui);
+        } else if app.canvas.polygon.is_some() {
             polygon_menu(app, ui);
         } else if app.tool == Tool::EditPoints && app.canvas.point_edit.is_some() {
             points_menu(app, ui, target);
@@ -444,6 +446,24 @@ fn polygon_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     }
     if item(ui, "Cancelar", "Esc") {
         app.canvas.polygon = None;
+    }
+}
+
+/// Mientras se dibuja con la Pluma.
+fn pen_menu(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
+    let n = app.canvas.pen.as_ref().map_or(0, Vec::len);
+    if n >= 3 && item(ui, "Cerrar trazado", "") {
+        super::finish_pen(app, true);
+    }
+    if n >= 2 && item(ui, "Terminar sin cerrar", "Intro") {
+        super::finish_pen(app, false);
+    }
+    if item(ui, "Quitar el último punto", "⌫") {
+        super::pen_remove_last(app);
+    }
+    if item(ui, "Cancelar", "") {
+        app.canvas.pen = None;
+        app.canvas.drag = None;
     }
 }
 

@@ -73,6 +73,8 @@ pub enum Drag {
         image: ShapeId,
         start: Point,
     },
+    /// Pluma: se arrastra tras poner un nodo para sacarle los manejadores.
+    PenHandle,
     /// Recuadro para seleccionar nodos en Editar puntos.
     NodeMarquee {
         start: Point,
@@ -137,6 +139,8 @@ pub struct CanvasState {
     pub drag: Option<Drag>,
     pub marquee: Option<Rect>,
     pub polygon: Option<Vec<Point>>,
+    /// Trazado que se está dibujando con la Pluma.
+    pub pen: Option<Vec<oc_core::nodes::Node>>,
     pub cursor_mm: Option<Point>,
     pub editing_text: Option<ShapeId>,
     pub send: SendSettings,
@@ -191,6 +195,7 @@ impl Default for CanvasState {
             drag: None,
             marquee: None,
             polygon: None,
+            pen: None,
             cursor_mm: None,
             editing_text: None,
             send: SendSettings::default(),
@@ -218,6 +223,22 @@ impl Default for CanvasState {
             fillet: None,
         }
     }
+}
+
+/// Termina el trazado de la Pluma y lo añade al documento (`close` = cerrado).
+pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
+    tools::finish_pen(app, close);
+}
+
+/// Quita el último punto del trazado de la Pluma (si era el único, se cancela).
+pub fn pen_remove_last(app: &mut OpenCraftCutterApp) {
+    if let Some(nodes) = app.canvas.pen.as_mut() {
+        nodes.pop();
+        if nodes.is_empty() {
+            app.canvas.pen = None;
+        }
+    }
+    app.canvas.drag = None;
 }
 
 impl CanvasState {

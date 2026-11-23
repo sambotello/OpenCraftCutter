@@ -108,6 +108,40 @@ pub fn finish_polygon(app: &mut OpenCraftCutterApp, close: bool) {
     }
 }
 
+/// Distancia (px) a la que un clic sobre el primer nodo cierra el trazado de la Pluma.
+pub const PEN_CLOSE_PX: f64 = 8.0;
+
+/// Termina el trazado de la Pluma: lo añade al documento como una forma y la selecciona. Con
+/// menos de dos puntos no queda nada.
+pub fn finish_pen(app: &mut OpenCraftCutterApp, close: bool) {
+    app.canvas.drag = None;
+    let Some(mut nodes) = app.canvas.pen.take() else {
+        return;
+    };
+    // Dos clics en el mismo sitio (un doble clic para terminar) no son dos nodos.
+    nodes.dedup_by(|b, a| a.p.distance(b.p) < 1e-6);
+    let closed = close && nodes.len() >= 3;
+    if nodes.len() < 2 {
+        return;
+    }
+    if !closed {
+        // En un trazado abierto esos manejadores no dibujan nada.
+        nodes[0].h_in = None;
+        if let Some(last) = nodes.last_mut() {
+            last.h_out = None;
+        }
+    }
+    let kind = ShapeKind::Path {
+        subpaths: Vec::new(),
+        fill_rule: Default::default(),
+    };
+    let mut s = new_shape(app, "Trazo", Rect::ZERO, kind);
+    s.set_world_node_paths(&[oc_core::nodes::NodePath { nodes, closed }]);
+    app.commit();
+    let id = app.doc.add_shape(s);
+    app.doc.selected = vec![id];
+}
+
 fn create_text(app: &mut OpenCraftCutterApp, _ctx: &egui::Context, at: Point) {
     let kind = ShapeKind::Text {
         text: String::new(),
@@ -197,9 +231,15 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     CursorIcon::Default
                 }
             }
-            (_, Tool::Rect | Tool::Ellipse | Tool::Line | Tool::Polygon | Tool::Freehand) => {
-                CursorIcon::Crosshair
-            }
+            (
+                _,
+                Tool::Rect
+                | Tool::Ellipse
+                | Tool::Line
+                | Tool::Polygon
+                | Tool::Pen
+                | Tool::Freehand,
+            ) => CursorIcon::Crosshair,
             _ => {
                 if let Some(pos) = hover {
                     match handle_at(app, pos) {
@@ -242,6 +282,11 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
 
     // Doble clic: cerrar polígono o editar texto.
     if response.double_clicked() {
+        // Pluma: el doble clic pone el último punto (lo hizo el primer clic) y termina.
+        if app.canvas.pen.is_some() {
+            finish_pen(app, false);
+            return;
+        }
         if tool == Tool::EditPoints {
             return;
         }
@@ -556,6 +601,21 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     app.canvas.polygon.get_or_insert_with(Vec::new).push(sp);
                 }
             }
+            Tool::Pen => {
+                let nodes = app.canvas.pen.get_or_insert_with(Vec::new);
+                let on_first = nodes.len() >= 3 && nodes[0].p.distance(p) * vp.scale < PEN_CLOSE_PX;
+                if on_first {
+                    finish_pen(app, true);
+                } else {
+                    // Mayús: el tramo nuevo, en horizontal, vertical o diagonal.
+                    let at = match nodes.last().filter(|_| shift) {
+                        Some(prev) => oc_core::snap::constrain_angle(prev.p, sp, 45.0).0,
+                        None => sp,
+                    };
+                    nodes.push(oc_core::nodes::Node::line(at));
+                    app.canvas.drag = Some(Drag::PenHandle);
+                }
+            }
             Tool::Text => {
                 if let Some(id) = shape_at(app, p) {
                     if app.doc.shape(id).is_some_and(|s| s.is_text()) {
@@ -838,6 +898,25 @@ pub fn handle_input(app: &mut OpenCraftCutterApp, ui: &mut Ui, response: &Respon
                     out,
                     committed,
                 });
+            }
+            Drag::PenHandle => {
+                // Arrastrar tras poner el nodo le saca dos manejadores simétricos: el de
+                // salida sigue al puntero.
+                if let Some(node) = app.canvas.pen.as_mut().and_then(|n| n.last_mut()) {
+                    let at = node.p;
+                    if at.distance(p) * vp.scale >= DRAG_THRESHOLD_PX {
+                        let to = if shift {
+                            oc_core::snap::constrain_angle(at, p, 45.0).0
+                        } else {
+                            p
+                        };
+                        node.h_out = Some(to);
+                        node.h_in = Some(at - (to - at));
+                        node.smooth = true;
+                        node.symmetric = true;
+                    }
+                }
+                app.canvas.drag = Some(Drag::PenHandle);
             }
             Drag::Freehand { id, mut points } => {
                 if points.last().is_none_or(|l| l.distance(p) >= 0.4) {

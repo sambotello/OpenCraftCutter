@@ -3,13 +3,14 @@ use crate::shell::icons;
 use crate::theme;
 use egui::Frame;
 
-pub const TOOLS: [(Tool, egui_material_icons::MaterialIcon); 11] = [
+pub const TOOLS: [(Tool, egui_material_icons::MaterialIcon); 12] = [
     (Tool::Select, icons::SELECT),
     (Tool::EditPoints, icons::EDIT_POINTS),
     (Tool::Line, icons::LINE),
     (Tool::Rect, icons::RECT),
     (Tool::Ellipse, icons::ELLIPSE),
     (Tool::Polygon, icons::POLYGON),
+    (Tool::Pen, icons::PEN),
     (Tool::Freehand, icons::FREEHAND),
     (Tool::Text, icons::TEXT),
     (Tool::Note, icons::NOTE),

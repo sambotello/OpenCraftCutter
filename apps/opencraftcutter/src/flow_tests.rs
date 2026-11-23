@@ -589,6 +589,7 @@ fn render_everything(zoom: f64) {
         Tool::Rect,
         Tool::Ellipse,
         Tool::Polygon,
+        Tool::Pen,
         Tool::Freehand,
         Tool::Text,
         Tool::Note,
