@@ -2713,6 +2713,11 @@ fn portapapeles_real() {
 
 // ---------------------------------------------------------------- Redondear esquinas
 
+/// Nodos tal como se editan (una esquina redondeada es un nodo con radio).
+fn edit_nodes_of(a: &crate::app::OpenCraftCutterApp) -> Vec<oc_core::nodes::Node> {
+    a.doc.shapes[0].world_edit_paths()[0].nodes.clone()
+}
+
 #[test]
 fn edit_points_round_a_corner_and_adjust_the_radius() {
     let mut h = edit_square();
@@ -2725,15 +2730,18 @@ fn edit_points_round_a_corner_and_adjust_the_radius() {
     a.point_select(0, n, false);
     assert!(a.can_fillet());
     assert_eq!(a.fillet_radius(), 0.0);
-    a.point_fillet(5.0);
-    assert_eq!(anchors(a).len(), 5, "la esquina pasa a ser dos nodos");
+    a.point_fillet(5.0, true);
+    // El nodo sigue siendo uno, en el vértice y seleccionado; lo que se corta es el arco.
+    assert_eq!(edit_nodes_of(a).len(), 4);
+    assert_eq!(edit_nodes_of(a)[n].p, kurbo::Point::new(80.0, 80.0));
+    assert_eq!(a.selected_nodes(), vec![(0, n)]);
     assert_eq!(a.fillet_radius(), 5.0);
-    assert_eq!(
-        a.selected_nodes().len(),
-        2,
-        "quedan seleccionados los dos nodos del arco"
-    );
     let p = anchors(a);
+    assert_eq!(
+        p.len(),
+        5,
+        "al cortar, la esquina son los dos extremos del arco"
+    );
     assert!(
         p.iter()
             .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
@@ -2742,38 +2750,56 @@ fn edit_points_round_a_corner_and_adjust_the_radius() {
         p.iter()
             .any(|q| q.distance(kurbo::Point::new(75.0, 80.0)) < 1e-6)
     );
-    // Cambiar el radio ajusta el mismo redondeo (no redondea lo ya redondeado).
-    a.point_fillet(10.0);
+    // Cambiar el radio mientras se arrastra el valor no añade entradas de historial.
+    a.point_fillet(10.0, false);
     let p = anchors(a);
-    assert_eq!(p.len(), 5);
     assert!(
         p.iter()
             .any(|q| q.distance(kurbo::Point::new(80.0, 70.0)) < 1e-6)
     );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(70.0, 80.0)) < 1e-6)
-    );
-    // Radio 0: vuelve la esquina en punta.
-    a.point_fillet(0.0);
-    assert_eq!(anchors(a).len(), 4);
-    assert!(anchors(a).contains(&kurbo::Point::new(80.0, 80.0)));
-    a.point_fillet(4.0);
-    assert_eq!(anchors(a).len(), 5);
-    // Todo el ajuste es una sola entrada de historial.
     a.undo();
-    assert_eq!(anchors(a).len(), 4);
-    assert!(anchors(a).contains(&kurbo::Point::new(80.0, 80.0)));
-    assert_eq!(
-        a.fillet_radius(),
-        0.0,
-        "tras deshacer ya no hay redondeo en curso"
-    );
-    // Otra edición cierra el ajuste: el siguiente radio redondea desde lo que hay.
+    assert_eq!(anchors(a).len(), 4, "un solo deshacer quita todo el ajuste");
     a.redo();
-    assert_eq!(a.fillet_radius(), 4.0);
-    a.point_nudge(kurbo::Vec2::new(1.0, 0.0));
+    assert_eq!(a.fillet_radius(), 10.0);
+    // Radio 0: vuelve la esquina en punta.
+    a.point_fillet(0.0, true);
+    assert_eq!(anchors(a).len(), 4);
     assert_eq!(a.fillet_radius(), 0.0);
+}
+
+#[test]
+fn edit_points_radius_can_be_changed_later() {
+    // El radio queda guardado en la esquina: tras otras ediciones se puede seguir ajustando.
+    let mut h = edit_square();
+    let a = h.state_mut();
+    let n = node_at(a, 80.0, 80.0);
+    let m = node_at(a, 40.0, 40.0);
+    a.point_select(0, n, false);
+    a.point_fillet(5.0, true);
+    // Otra esquina con otro radio, y un nodo movido.
+    a.point_select(0, m, false);
+    assert_eq!(a.fillet_radius(), 0.0, "cada esquina muestra su radio");
+    a.point_fillet(8.0, true);
+    a.point_nudge(kurbo::Vec2::new(-2.0, 0.0));
+    // Se vuelve a la primera: conserva su radio y se puede cambiar.
+    a.point_select(0, n, false);
+    assert_eq!(a.fillet_radius(), 5.0);
+    a.point_fillet(12.0, true);
+    let nodes = edit_nodes_of(a);
+    assert_eq!(nodes.len(), 4);
+    assert_eq!((nodes[n].radius, nodes[m].radius), (12.0, 8.0));
+    // Sale de Editar puntos, se mueve la forma y se guarda: el radio sigue ahí.
+    a.tool = crate::app::Tool::Select;
+    let json = a.doc.to_json();
+    let doc = oc_core::Document::from_json(&json).unwrap();
+    assert_eq!(doc.shapes[0].world_edit_paths()[0].nodes[n].radius, 12.0);
+    // Las dos seleccionadas: el campo ajusta las dos a la vez.
+    a.tool = crate::app::Tool::EditPoints;
+    a.point_select(0, n, false);
+    a.point_select(0, m, true);
+    a.point_fillet(3.0, true);
+    let nodes = edit_nodes_of(a);
+    assert_eq!((nodes[n].radius, nodes[m].radius), (3.0, 3.0));
 }
 
 #[test]
@@ -2792,64 +2818,21 @@ fn edit_points_round_all_corners_from_the_panel() {
     h.key_press(egui::Key::Enter);
     h.run_steps(3);
     let a = h.state();
-    assert_eq!(anchors(a).len(), 8, "cuatro esquinas, ocho nodos");
-    assert!((a.fillet_radius() - 5.0).abs() < 1e-6);
+    assert_eq!(edit_nodes_of(a).len(), 4, "siguen siendo cuatro nodos");
+    assert!(
+        edit_nodes_of(a)
+            .iter()
+            .all(|n| (n.radius - 5.0).abs() < 1e-6)
+    );
+    assert_eq!(anchors(a).len(), 8, "al cortar, cuatro arcos");
     let b = bounds(&a.doc.shapes[0]);
     assert!((b.width() - 40.0).abs() < 1e-6 && (b.height() - 40.0).abs() < 1e-6);
-}
-
-#[test]
-fn edit_points_round_one_corner_and_then_another() {
-    let mut h = edit_square();
-    let a = h.state_mut();
-    // Primera esquina.
-    let n = node_at(a, 80.0, 80.0);
-    a.point_select(0, n, false);
-    a.point_fillet(5.0);
-    assert_eq!(anchors(a).len(), 5);
-    // Se selecciona otra esquina: el radio es para ella y empieza en 0.
-    let m = node_at(a, 40.0, 40.0);
-    a.point_select(0, m, false);
-    assert!(a.can_fillet());
-    assert_eq!(a.fillet_radius(), 0.0);
-    a.point_fillet(8.0);
-    let p = anchors(a);
-    assert_eq!(p.len(), 6, "dos esquinas redondeadas");
-    // La segunda, con su radio…
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(48.0, 40.0)) < 1e-6)
-    );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(40.0, 48.0)) < 1e-6)
-    );
-    // …y la primera sigue con el suyo.
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
-    );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(75.0, 80.0)) < 1e-6)
-    );
-    // Ajustar ahora el radio solo cambia la segunda.
-    a.point_fillet(3.0);
-    let p = anchors(a);
-    assert_eq!(p.len(), 6);
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(43.0, 40.0)) < 1e-6)
-    );
-    assert!(
-        p.iter()
-            .any(|q| q.distance(kurbo::Point::new(80.0, 75.0)) < 1e-6)
-    );
-    // Cada esquina es su propio paso de deshacer.
-    a.undo();
-    assert_eq!(anchors(a).len(), 5);
-    a.undo();
-    assert_eq!(anchors(a).len(), 4);
+    // «Convertir el redondeo en puntos» deja los arcos como nodos normales.
+    click(&mut h, "Convertir el redondeo en puntos");
+    let a = h.state();
+    assert_eq!(edit_nodes_of(a).len(), 8);
+    assert!(edit_nodes_of(a).iter().all(|n| n.radius == 0.0));
+    assert_eq!(a.selected_nodes().len(), 8);
 }
 
 // ---------------------------------------------------------------- Robustez

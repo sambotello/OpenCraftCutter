@@ -1146,6 +1146,7 @@ impl ttf_parser::OutlineBuilder for NodeOutline {
             h_out: None,
             smooth: false,
             symmetric: false,
+            radius: 0.0,
         });
     }
 
@@ -1159,6 +1160,7 @@ impl ttf_parser::OutlineBuilder for NodeOutline {
             h_out: None,
             smooth: false,
             symmetric: false,
+            radius: 0.0,
         });
     }
 

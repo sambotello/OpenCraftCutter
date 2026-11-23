@@ -246,7 +246,7 @@ impl OpenCraftCutterApp {
                     .filter_map(crate::canvas::point_edit::to_editable_path)
                     .collect();
                 let mut paths: Vec<oc_core::nodes::NodePath> =
-                    parts.iter().flat_map(|s| s.world_node_paths()).collect();
+                    parts.iter().flat_map(|s| s.world_edit_paths()).collect();
                 if oc_core::nodes::join_open_paths(&mut paths, JOIN_FUSE_MM) == 0 {
                     return;
                 }

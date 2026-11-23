@@ -110,23 +110,6 @@ pub enum EyedropperTarget {
     Line,
 }
 
-/// Redondeo de esquinas en curso: mientras el trazo y la selección de nodos sigan como los
-/// dejó, cambiar el radio vuelve a partir de la forma original en vez de redondear lo ya
-/// redondeado. Al seleccionar otros nodos, el radio pasa a aplicarse a esos.
-#[derive(Debug, Clone)]
-pub struct FilletSession {
-    pub shape: ShapeId,
-    /// Trazados antes de redondear.
-    pub base: Vec<oc_core::nodes::NodePath>,
-    /// Esquinas elegidas (subtrazo, nodo), en `base`.
-    pub corners: Vec<(usize, usize)>,
-    pub radius: f64,
-    /// Trazados tal como quedaron guardados tras aplicar `radius`.
-    pub result: Vec<oc_core::nodes::NodePath>,
-    /// Nodos que quedaron seleccionados (los de los arcos).
-    pub selected: Vec<(usize, usize)>,
-}
-
 /// Trazo en edición de puntos y vértice seleccionado (subtrazo, índice).
 #[derive(Debug, Clone, Copy)]
 pub struct PointEdit {
@@ -184,8 +167,6 @@ pub struct CanvasState {
     pub move_guides: Vec<(Point, Point)>,
     /// Dónde se abrió el último menú contextual del lienzo.
     pub context: Option<context_menu::ContextTarget>,
-    /// Redondeo de esquinas que se está ajustando en Editar puntos.
-    pub fillet: Option<FilletSession>,
 }
 
 impl Default for CanvasState {
@@ -220,7 +201,6 @@ impl Default for CanvasState {
             snap_guides: Vec::new(),
             move_guides: Vec::new(),
             context: None,
-            fillet: None,
         }
     }
 }

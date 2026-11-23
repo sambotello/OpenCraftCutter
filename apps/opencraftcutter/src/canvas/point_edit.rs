@@ -23,7 +23,7 @@ pub enum Hit {
 pub fn edited_paths(app: &OpenCraftCutterApp) -> Option<(u64, Vec<NodePath>)> {
     let pe = app.canvas.point_edit?;
     let s = app.doc.shape(pe.shape)?;
-    Some((pe.shape, s.world_node_paths()))
+    Some((pe.shape, s.world_edit_paths()))
 }
 
 /// Tramo resaltado: el que termina en el nodo seleccionado (como la referencia).
@@ -127,7 +127,7 @@ pub fn snap_targets(app: &OpenCraftCutterApp, moving: &[(usize, usize)]) -> Vec<
 /// Nodos de una forma no-trazo (rectángulo, elipse, texto), ya en mm del mundo.
 fn as_node_paths(s: &Shape) -> Vec<NodePath> {
     match &s.kind {
-        ShapeKind::Path { .. } => s.world_node_paths(),
+        ShapeKind::Path { .. } => s.world_edit_paths(),
         ShapeKind::Ellipse => vec![nodes::ellipse(s.rect)],
         ShapeKind::Text { .. } => crate::text::text_to_path(s)
             .map(|p| p.world_node_paths())
@@ -210,7 +210,7 @@ impl OpenCraftCutterApp {
         let Some(s) = self.doc.shape(pe.shape) else {
             return;
         };
-        let mut paths = s.world_node_paths();
+        let mut paths = s.world_edit_paths();
         let mut sel = pe.selected;
         f(&mut paths, &mut sel);
         paths.retain(|p| p.nodes.len() >= 2);
@@ -240,7 +240,7 @@ impl OpenCraftCutterApp {
             self.canvas.point_multi.clear();
             return;
         };
-        let Some(paths) = self.doc.shape(pe.shape).map(|s| s.world_node_paths()) else {
+        let Some(paths) = self.doc.shape(pe.shape).map(|s| s.world_edit_paths()) else {
             self.canvas.point_edit = None;
             self.canvas.point_multi.clear();
             return;
@@ -667,95 +667,95 @@ impl OpenCraftCutterApp {
         });
     }
 
-    /// Redondeo en curso, si el trazo en edición y la selección de nodos siguen como los
-    /// dejó. Con otros nodos seleccionados, el radio es para esos: empieza un redondeo nuevo.
-    fn fillet_session(&self) -> Option<&super::FilletSession> {
-        let pe = self.canvas.point_edit?;
-        let f = self.canvas.fillet.as_ref()?;
-        if f.shape != pe.shape || f.selected != self.selected_nodes() {
-            return None;
-        }
-        let current = self.doc.shape(pe.shape)?.world_node_paths();
-        (f.result == current).then_some(f)
-    }
-
-    /// Radio (mm) del redondeo que se está ajustando; 0 si no hay ninguno.
-    pub fn fillet_radius(&self) -> f64 {
-        self.fillet_session().map_or(0.0, |f| f.radius)
-    }
-
-    /// ¿Se puede redondear? Hay un redondeo en curso o alguna esquina entre los nodos
-    /// seleccionados.
-    pub fn can_fillet(&self) -> bool {
-        if self.fillet_session().is_some() {
-            return true;
-        }
+    /// Esquinas (nodos que se pueden redondear) entre los nodos seleccionados.
+    fn selected_corners(&self) -> Vec<(usize, usize)> {
         let sel = self.selected_nodes();
-        edited_paths(self).is_some_and(|(_, p)| {
-            sel.iter()
-                .any(|(si, ni)| p.get(*si).is_some_and(|np| nodes::is_corner(np, *ni)))
-        })
+        let Some((_, paths)) = edited_paths(self) else {
+            return Vec::new();
+        };
+        sel.into_iter()
+            .filter(|(si, ni)| paths.get(*si).is_some_and(|np| nodes::is_corner(np, *ni)))
+            .collect()
     }
 
-    /// Redondea las esquinas seleccionadas con arcos de `radius` mm. Llamadas seguidas (al
-    /// arrastrar el valor) ajustan el mismo redondeo: una sola entrada de historial, siempre
-    /// a partir de la forma original. Con radio 0 vuelve la esquina viva.
-    pub fn point_fillet(&mut self, radius: f64) {
-        let Some(pe) = self.canvas.point_edit else {
-            return;
+    /// Radio de redondeo (mm) de las esquinas seleccionadas: el del nodo principal si es una
+    /// esquina; si no, el mayor de la selección. 0 si no hay ninguna redondeada.
+    pub fn fillet_radius(&self) -> f64 {
+        let Some((_, paths)) = edited_paths(self) else {
+            return 0.0;
         };
+        let radius = |(si, ni): (usize, usize)| {
+            paths
+                .get(si)
+                .and_then(|np| np.nodes.get(ni))
+                .map_or(0.0, |n| n.radius)
+        };
+        let corners = self.selected_corners();
+        let primary = self
+            .canvas
+            .point_edit
+            .and_then(|pe| pe.selected)
+            .filter(|n| corners.contains(n));
+        match primary {
+            Some(n) => radius(n),
+            None => corners.into_iter().map(radius).fold(0.0, f64::max),
+        }
+    }
+
+    /// ¿Hay alguna esquina entre los nodos seleccionados?
+    pub fn can_fillet(&self) -> bool {
+        !self.selected_corners().is_empty()
+    }
+
+    /// Pone el radio de redondeo (mm) de las esquinas seleccionadas. El radio queda guardado
+    /// en el nodo, que sigue en el vértice: se puede cambiar cuando se quiera, y 0 devuelve la
+    /// esquina viva. `commit` = nueva entrada de historial (falso mientras se arrastra el valor).
+    pub fn point_fillet(&mut self, radius: f64, commit: bool) {
+        let corners = self.selected_corners();
+        if corners.is_empty() {
+            return;
+        }
         let radius = radius.max(0.0);
-        let (base, corners) = match self.fillet_session() {
-            Some(f) => (f.base.clone(), f.corners.clone()),
-            None => {
-                let Some((_, paths)) = edited_paths(self) else {
-                    return;
-                };
-                let corners: Vec<(usize, usize)> = self
-                    .selected_nodes()
-                    .into_iter()
-                    .filter(|(si, ni)| paths.get(*si).is_some_and(|np| nodes::is_corner(np, *ni)))
-                    .collect();
-                if corners.is_empty() || radius == 0.0 {
-                    return;
+        self.edit_nodes(commit, |p, _| {
+            for (si, ni) in &corners {
+                if let Some(n) = p.get_mut(*si).and_then(|np| np.nodes.get_mut(*ni)) {
+                    n.radius = radius;
                 }
-                self.commit();
-                (paths, corners)
             }
-        };
-        let mut selected: Vec<(usize, usize)> = Vec::new();
-        let paths: Vec<NodePath> = base
-            .iter()
-            .enumerate()
-            .map(|(si, np)| {
-                let here: Vec<usize> = corners.iter().filter(|c| c.0 == si).map(|c| c.1).collect();
-                let (out, new) = nodes::fillet_corners(np, &here, radius);
-                // Con radio 0 no hay nodos nuevos: se vuelven a seleccionar las esquinas.
-                let keep = if new.is_empty() { here } else { new };
-                selected.extend(keep.into_iter().map(|ni| (si, ni)));
-                out
-            })
-            .collect();
-        let Some(s) = self.doc.shape_mut(pe.shape) else {
+        });
+    }
+
+    /// ¿Hay alguna esquina redondeada entre los nodos seleccionados?
+    pub fn can_expand_fillet(&self) -> bool {
+        self.fillet_radius() > 0.0
+    }
+
+    /// Convierte el redondeo de las esquinas seleccionadas en nodos normales (los dos extremos
+    /// del arco), para retocar la curva a mano. Los nodos nuevos quedan seleccionados.
+    pub fn point_expand_fillet(&mut self) {
+        let corners = self.selected_corners();
+        if !self.can_expand_fillet() {
             return;
-        };
-        s.set_world_node_paths(&paths);
-        let result = s.world_node_paths();
-        selected.sort_unstable();
-        selected.dedup();
-        self.canvas.point_multi = selected.iter().copied().collect();
-        self.canvas.point_edit = Some(PointEdit {
-            shape: pe.shape,
-            selected: selected.first().copied(),
+        }
+        let mut selected: Vec<(usize, usize)> = Vec::new();
+        self.edit_nodes(true, |p, sel| {
+            for (si, np) in p.iter_mut().enumerate() {
+                let each: Vec<(usize, f64)> = corners
+                    .iter()
+                    .filter(|c| c.0 == si)
+                    .filter_map(|c| np.nodes.get(c.1).map(|n| (c.1, n.radius)))
+                    .filter(|c| c.1 > 0.0)
+                    .collect();
+                if each.is_empty() {
+                    continue;
+                }
+                let (out, new) = nodes::fillet_corners_each(np, &each);
+                *np = out;
+                selected.extend(new.into_iter().map(|ni| (si, ni)));
+            }
+            *sel = selected.first().copied();
         });
-        self.canvas.fillet = Some(super::FilletSession {
-            shape: pe.shape,
-            base,
-            corners,
-            radius,
-            result,
-            selected,
-        });
+        self.canvas.point_multi = selected.into_iter().collect();
     }
 
     /// Convierte un tramo concreto en recta (`false`) o curva (`true`).

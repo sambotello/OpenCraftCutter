@@ -293,6 +293,7 @@ impl Subpath {
                     h_out: h.h_out.map(f),
                     smooth: h.smooth,
                     symmetric: h.symmetric,
+                    radius: h.radius,
                 }
             })
             .collect();
@@ -465,9 +466,19 @@ impl Shape {
             .collect()
     }
 
-    /// Nodos de los trazados en mm (mundo, sin rotación). Rectángulos y elipses dan sus
-    /// nodos equivalentes; textos e imágenes, ninguno.
+    /// Trazados en mm (mundo, sin rotación) tal como se dibujan y se cortan: las esquinas con
+    /// radio ya son arcos. Rectángulos y elipses dan sus nodos equivalentes; textos e imágenes,
+    /// ninguno. Para editar los nodos (con su radio) está [`Shape::world_edit_paths`].
     pub fn world_node_paths(&self) -> Vec<crate::nodes::NodePath> {
+        self.world_edit_paths()
+            .iter()
+            .map(crate::nodes::NodePath::resolved)
+            .collect()
+    }
+
+    /// Nodos de los trazados en mm (mundo, sin rotación) tal como se editan: una esquina
+    /// redondeada sigue siendo un nodo en el vértice, con su radio.
+    pub fn world_edit_paths(&self) -> Vec<crate::nodes::NodePath> {
         let r = self.rect;
         match &self.kind {
             ShapeKind::Path { subpaths, .. } => {
@@ -480,9 +491,10 @@ impl Shape {
 
     /// Sustituye los trazados por nodos en mm (mundo, sin rotación) y recalcula la caja.
     pub fn set_world_node_paths(&mut self, paths: &[crate::nodes::NodePath]) {
+        // La caja es la de lo que se dibuja: con las esquinas ya redondeadas.
         let mut b: Option<Rect> = None;
         for np in paths {
-            for p in np.flatten(crate::nodes::FLATTEN_TOL_MM) {
+            for p in np.resolved().flatten(crate::nodes::FLATTEN_TOL_MM) {
                 let r = Rect::from_points(p, p);
                 b = Some(b.map_or(r, |o| o.union(r)));
             }
@@ -498,7 +510,10 @@ impl Shape {
         let subpaths: Vec<Subpath> = paths
             .iter()
             .map(|np| {
-                let any = np.nodes.iter().any(|n| n.is_bezier() || n.smooth);
+                let any = np
+                    .nodes
+                    .iter()
+                    .any(|n| n.is_bezier() || n.smooth || n.radius > 0.0);
                 Subpath {
                     points: np.nodes.iter().map(|n| norm(n.p)).collect(),
                     closed: np.closed,
@@ -510,6 +525,7 @@ impl Shape {
                                 h_out: n.h_out.map(norm),
                                 smooth: n.smooth,
                                 symmetric: n.symmetric,
+                                radius: n.radius,
                             })
                             .collect()
                     }),
@@ -608,5 +624,80 @@ mod gradient_tests {
         let back: Shape = serde_json::from_value(v).unwrap();
         s.fill_opacity = 1.0;
         assert_eq!(back, s);
+    }
+}
+
+#[cfg(test)]
+mod rounding_tests {
+    use super::*;
+    use crate::nodes::NodePath;
+
+    fn triangle() -> Shape {
+        let mut np = NodePath::from_points(
+            &[
+                Point::new(0.0, 0.0),
+                Point::new(40.0, 0.0),
+                Point::new(20.0, 30.0),
+            ],
+            true,
+        );
+        np.nodes[2].radius = 5.0;
+        let mut s = Shape::new(
+            1,
+            "Triángulo",
+            Rect::ZERO,
+            ShapeKind::Path {
+                subpaths: Vec::new(),
+                fill_rule: FillRule::EvenOdd,
+            },
+        );
+        s.set_world_node_paths(&[np]);
+        s
+    }
+
+    #[test]
+    fn rounded_corner_is_kept_as_a_node_and_cut_as_an_arc() {
+        let s = triangle();
+        // Para editar: tres nodos, el de la punta con su radio.
+        let edit = s.world_edit_paths();
+        assert_eq!(edit[0].nodes.len(), 3);
+        assert_eq!(edit[0].nodes[2].radius, 5.0);
+        assert!(edit[0].nodes[2].p.distance(Point::new(20.0, 30.0)) < 1e-9);
+        // Para dibujar y cortar: la punta es un arco.
+        let cut = s.world_node_paths();
+        assert_eq!(cut[0].nodes.len(), 4);
+        assert!(cut[0].nodes.iter().all(|n| n.p.y < 30.0 - 1.0));
+        // La caja es la de lo que se corta: la punta redondeada no llega a y = 30.
+        assert!(s.rect.y1 < 29.0 && s.rect.y1 > 20.0, "{:?}", s.rect);
+        assert_eq!((s.rect.x0, s.rect.x1, s.rect.y0), (0.0, 40.0, 0.0));
+    }
+
+    #[test]
+    fn radius_survives_saving_and_moving_and_old_files_have_none() {
+        let s = triangle();
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("\"radius\":5.0"));
+        let back: Shape = serde_json::from_str(&json).unwrap();
+        let (a, b) = (&back.world_edit_paths()[0], &s.world_edit_paths()[0]);
+        assert_eq!(a.nodes.len(), b.nodes.len());
+        for (x, y) in a.nodes.iter().zip(&b.nodes) {
+            assert!(x.p.distance(y.p) < 1e-9 && x.radius == y.radius);
+        }
+        // Mover la forma no cambia el radio (está en mm, no en proporción a la caja).
+        let mut moved = s.clone();
+        moved.rect = moved.rect + kurbo::Vec2::new(100.0, 50.0);
+        let n = moved.world_edit_paths()[0].nodes[2];
+        assert_eq!(n.radius, 5.0);
+        assert!(n.p.distance(Point::new(120.0, 80.0)) < 1e-9);
+        // Un archivo anterior no trae el campo: sin redondeo, y al guardar no lo añade.
+        let old = json.replace(",\"radius\":5.0", "");
+        let old: Shape = serde_json::from_str(&old).unwrap();
+        assert!(
+            old.world_edit_paths()[0]
+                .nodes
+                .iter()
+                .all(|n| n.radius == 0.0)
+        );
+        assert!(!serde_json::to_string(&old).unwrap().contains("radius"));
     }
 }

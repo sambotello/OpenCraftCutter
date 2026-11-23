@@ -485,6 +485,24 @@ fn draw_point_edit(app: &OpenCraftCutterApp, painter: &Painter, vp: &Viewport) {
             }
         }
     }
+    // Esquinas redondeadas: el nodo sigue en el vértice, fuera del arco; dos líneas finas lo
+    // unen a los puntos donde empieza y acaba el redondeo.
+    for np in &paths {
+        for (ni, node) in np.nodes.iter().enumerate() {
+            if node.radius <= 0.0 {
+                continue;
+            }
+            let (arc, new) = oc_core::nodes::fillet_corners_each(np, &[(ni, node.radius)]);
+            for k in new {
+                painter.add(EShape::dashed_line(
+                    &[vp.to_screen(node.p), vp.to_screen(arc.nodes[k].p)],
+                    Stroke::new(1.0, Color32::from_gray(0x80)),
+                    3.0,
+                    3.0,
+                ));
+            }
+        }
+    }
     for (si, np) in paths.iter().enumerate() {
         let n = np.nodes.len();
         for (ni, node) in np.nodes.iter().enumerate() {

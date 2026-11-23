@@ -229,14 +229,17 @@ fn position(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     }
 }
 
-/// Radio de redondeo de las esquinas seleccionadas, en la unidad de la página. Arrastrar o
-/// escribir el valor ajusta el mismo redondeo; 0 devuelve la esquina viva.
+/// Radio de redondeo de las esquinas seleccionadas, en la unidad de la página. El radio queda
+/// guardado en el nodo: se puede cambiar en cualquier momento, y 0 devuelve la esquina viva. Un
+/// arrastre o una edición completa del campo es una sola entrada de historial.
 fn fillet(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
     let unit = app.doc.page.unit;
     let enabled = app.can_fillet();
     let shown = unit.from_mm(app.fillet_radius());
     let mut v = shown;
+    let editing_id = egui::Id::unique("editar-puntos-radio-en-edicion");
     let mut changed = false;
+    let mut active = false;
     super::row(ui, "Radio", |ui| {
         let r = ui.add_enabled(
             enabled,
@@ -248,15 +251,30 @@ fn fillet(app: &mut OpenCraftCutterApp, ui: &mut Ui) {
         );
         crate::theme::name_widget(&r, "Radio de redondeo");
         changed = r.changed() && v != shown;
+        active = r.dragged() || r.has_focus();
     });
+    let editing = ui.data(|d| d.get_temp::<bool>(editing_id).unwrap_or(false));
     if changed {
-        app.point_fillet(unit.to_mm(v));
+        app.point_fillet(unit.to_mm(v), !editing);
+        ui.data_mut(|d| d.insert_temp(editing_id, true));
+    } else if editing && !active {
+        ui.data_mut(|d| d.insert_temp(editing_id, false));
+    }
+    if app.can_expand_fillet()
+        && ui
+            .button("Convertir el redondeo en puntos")
+            .on_hover_text(
+                "Sustituye la esquina por los dos extremos del arco, para retocar la curva a mano.",
+            )
+            .clicked()
+    {
+        app.point_expand_fillet();
     }
     hint(
         ui,
         if enabled {
-            "Sube el radio para redondear las esquinas seleccionadas; 0 las deja en punta. \
-             Si no cabe en los tramos, se usa el mayor radio posible."
+            "El radio queda guardado en la esquina: puedes cambiarlo cuando quieras; 0 la deja \
+             en punta. Si no cabe en los tramos, se usa el mayor radio posible."
         } else {
             "Selecciona un punto en esquina (no un extremo ni un punto suave)."
         },
